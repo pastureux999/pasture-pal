@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PasturePal — Your AI-Powered Homestead Assistant</title>
+  <meta name="description" content="PasturePal combines 5 unique AI features for your herd with a full garden & harvest tracker — USDA zone-based planting calendar, harvest reminders, and AI garden advisor. Free for 10 animals." />
+  <meta property="og:title" content="PasturePal — Your AI-Powered Homestead Assistant" />
+  <meta property="og:description" content="The only homestead app with AI symptom checking, body condition scoring, per-animal AI, and a full garden & harvest tracker with zip code–based planting advice. Free for up to 10 animals." />
+  <meta property="og:type" content="website" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,800;1,400&family=Jost:wght@400;500;600;700&family=DM+Mono&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Jost', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      background-color: #F7F0DC;
+      color: #1E1509;
+      background-image:
+        linear-gradient(90deg, transparent 58px, rgba(184,92,52,0.13) 58px, rgba(184,92,52,0.14) 60px, transparent 60px),
+        repeating-linear-gradient(180deg, transparent 0px, transparent 27px, rgba(160,130,50,0.13) 27px, rgba(160,130,50,0.14) 28.5px);
+    }
+    body::after {
+      content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 9999; opacity: 0.055;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.74' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23g)'/%3E%3C/svg%3E");
+      background-size: 300px 300px;
+    }
+
+    /* ── Typography ── */
+    .serif { font-family: 'Playfair Display', Georgia, serif; }
+    .mono  { font-family: 'DM Mono', monospace; }
+
+    /* ── Layout ── */
+    .container        { max-width: 1060px; margin: 0 auto; padding: 0 24px; }
+    .container--narrow { max-width: 740px;  margin: 0 auto; padding: 0 24px; }
+
+    /* ── Colours ── */
+    :root {
+      --cream:#F5EDD8; --off:#FBF7EE; --parch:#E8D9B5;
+      --dark:#1E1509; --brown:#3D2B10; --mid:#6B4C22;
+      --stone:#8A7355; --pebble:#B5A080;
+      --sage:#7A9E82; --sage-d:#4D7057; --sage-l:#A8C5AD; --sage-p:#E8F0E9;
+      --terra:#B85C34; --wheat:#C8A050; --rose:#C8907A; --sky:#7898A8; --amber:#D4882A;
+    }
+
+    /* ── Animations ── */
+    @keyframes fadeUp   { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes float    { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+    @keyframes leafSway { 0%,100%{transform:rotate(-3deg)} 50%{transform:rotate(3deg)} }
+    @keyframes dash     { to{stroke-dashoffset:0} }
+    @keyframes shimmer  { 0%{background-position:-400px 0} 100%{background-position:400px 0} }
+
+    .fade-up   { animation: fadeUp 0.6s ease both; }
+    .fade-up-2 { animation: fadeUp 0.6s 0.12s ease both; }
+    .fade-up-3 { animation: fadeUp 0.6s 0.24s ease both; }
+    .float     { animation: float 4s ease-in-out infinite; }
+    .leaf-sway { animation: leafSway 7s ease-in-out infinite; transform-origin: bottom center; }
+
+    /* ── Buttons ── */
+    .btn { display:inline-flex;align-items:center;justify-content:center;gap:8px;font-family:'Jost',sans-serif;font-weight:600;font-size:14px;padding:13px 28px;border-radius:100px;cursor:pointer;text-decoration:none;transition:all 0.2s ease;white-space:nowrap;letter-spacing:0.02em;border:none; }
+    .btn--primary { background:var(--brown);color:var(--cream);box-shadow:0 4px 16px rgba(61,43,16,0.3); }
+    .btn--primary:hover { transform:translateY(-2px);box-shadow:0 8px 24px rgba(61,43,16,0.35); }
+    .btn--sage    { background:var(--sage);color:#fff;box-shadow:0 4px 14px rgba(122,158,130,0.35); }
+    .btn--sage:hover { transform:translateY(-2px);box-shadow:0 8px 20px rgba(122,158,130,0.4); }
+    .btn--outline { background:transparent;color:var(--brown);border:1.5px solid var(--parch); }
+    .btn--outline:hover { background:var(--off);transform:translateY(-1px); }
+    .btn--ghost   { background:rgba(245,237,216,0.15);color:var(--cream);border:1.5px solid rgba(245,237,216,0.3); }
+    .btn--ghost:hover { background:rgba(245,237,216,0.25); }
+    .btn--lg { padding:16px 36px;font-size:15px; }
+
+    /* ── Nav ── */
+    nav { position:sticky;top:0;z-index:100;background:rgba(251,247,238,0.95);backdrop-filter:blur(12px);border-bottom:1px solid var(--parch);padding:0 24px; }
+    .nav-inner { max-width:1060px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:66px; }
+    .nav-logo { display:flex;align-items:center;gap:10px;text-decoration:none; }
+    .nav-logo-icon { width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,var(--cream),var(--parch));border:1.5px solid var(--parch);display:flex;align-items:center;justify-content:center; }
+    .nav-wordmark { font-family:'Playfair Display',serif;font-size:19px;font-weight:800;letter-spacing:-0.03em;color:var(--dark); }
+    .nav-wordmark span { color:var(--sage); }
+    .nav-sub { font-size:9px;color:var(--pebble);text-transform:uppercase;letter-spacing:0.18em;font-weight:600;margin-top:1px; }
+    .nav-links { display:flex;align-items:center;gap:6px; }
+    .nav-link { font-size:13px;color:var(--stone);text-decoration:none;padding:6px 14px;font-weight:500;transition:color 0.15s;border-radius:8px; }
+    .nav-link:hover { color:var(--dark);background:var(--cream); }
+
+    /* ── Section helpers ── */
+    section { padding:80px 0; }
+    .eyebrow { display:inline-flex;align-items:center;gap:8px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.16em;color:var(--sage-d);margin-bottom:14px; }
+    .eyebrow::before,.eyebrow::after { content:'';flex:0 0 20px;height:1px;background:var(--sage-l); }
+    .section-title { font-family:'Playfair Display',serif;font-size:clamp(26px,4vw,42px);font-weight:800;letter-spacing:-0.025em;line-height:1.12;color:var(--dark);margin-bottom:14px; }
+    .section-sub { font-size:16px;color:var(--stone);line-height:1.7;max-width:520px; }
+    .center { text-align:center; }
+    .center .eyebrow { justify-content:center; }
+    .center .section-sub { margin:0 auto; }
+
+    /* ── Hero ── */
+    .hero { padding:80px 0 60px;position:relative;overflow:hidden;text-align:center; }
+    .hero-pill { display:inline-flex;align-items:center;gap:8px;background:var(--sage-p);border:1.5px solid var(--sage-l);border-radius:100px;padding:6px 16px;font-size:11px;color:var(--sage-d);font-weight:700;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:26px; }
+    .hero-headline { font-family:'Playfair Display',serif;font-size:clamp(38px,7vw,76px);font-weight:800;line-height:1.06;letter-spacing:-0.03em;color:var(--dark);margin-bottom:22px; }
+    .hero-headline em { color:var(--sage);font-style:italic; }
+    .hero-sub { font-size:17px;color:var(--stone);line-height:1.72;max-width:560px;margin:0 auto 36px; }
+    .hero-ctas { display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:12px; }
+    .hero-note { font-size:11px;color:var(--pebble);letter-spacing:0.04em;margin-bottom:56px; }
+
+    /* ── App screenshot mockup ── */
+    .mock-shell { background:var(--off);border-radius:18px;border:1.5px solid var(--parch);box-shadow:0 32px 80px rgba(42,31,14,0.18),0 8px 20px rgba(42,31,14,0.1);overflow:hidden;max-width:520px;margin:0 auto; }
+    .mock-titlebar { background:var(--cream);border-bottom:1px solid var(--parch);padding:9px 14px;display:flex;align-items:center;gap:6px; }
+    .mock-dot { width:10px;height:10px;border-radius:50%; }
+    .mock-url { flex:1;background:var(--off);border-radius:5px;padding:3px 12px;font-family:'DM Mono',monospace;font-size:10px;color:var(--stone);text-align:center;border:1px solid var(--parch);margin:0 8px; }
+    .mock-body { padding:14px; }
+
+    /* ── AI Spotlight ── */
+    .ai-section { background:linear-gradient(160deg,#2A1F0E 0%,#3D2B10 60%,#1a120a 100%);padding:90px 0;position:relative;overflow:hidden; }
+    .ai-section::before { content:'';position:absolute;top:-100px;right:-100px;width:400px;height:400px;border-radius:50%;background:rgba(122,158,130,0.08);pointer-events:none; }
+    .ai-section::after  { content:'';position:absolute;bottom:-80px;left:-60px;width:300px;height:300px;border-radius:50%;background:rgba(200,160,80,0.06);pointer-events:none; }
+    .ai-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px; }
+    .ai-card { background:rgba(255,255,255,0.05);border:1px solid rgba(245,237,216,0.12);border-radius:18px;padding:28px;transition:all 0.2s ease;position:relative;overflow:hidden; }
+    .ai-card:hover { background:rgba(255,255,255,0.08);transform:translateY(-2px);border-color:rgba(168,197,173,0.25); }
+    .ai-card-icon { font-size:32px;margin-bottom:16px;display:block; }
+    .ai-card-title { font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:#F5EDD8;margin-bottom:10px; }
+    .ai-card-text { font-size:13px;color:#B5A080;line-height:1.7; }
+    .ai-card-badge { display:inline-flex;align-items:center;gap:5px;margin-top:14px;padding:4px 12px;border-radius:100px;background:rgba(122,158,130,0.2);border:1px solid rgba(168,197,173,0.3);font-size:10px;font-weight:700;color:#A8C5AD;text-transform:uppercase;letter-spacing:0.08em; }
+
+    /* Mini result previews inside AI cards */
+    .ai-preview { margin-top:18px;background:rgba(0,0,0,0.2);border-radius:12px;padding:14px;border:1px solid rgba(245,237,216,0.08); }
+    .ai-preview-label { font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.14em;color:rgba(181,160,128,0.7);margin-bottom:10px; }
+    .urgency-badge { display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:8px;font-size:12px;font-weight:700;margin-bottom:8px; }
+    .cause-row { display:flex;align-items:center;gap:8px;padding:4px 0;font-size:11px;color:#B5A080; }
+    .cause-dot { width:5px;height:5px;border-radius:50%;background:#7A9E82;flex-shrink:0; }
+
+    /* BCS gauge preview */
+    .bcs-preview { display:flex;align-items:center;gap:14px; }
+    .bcs-score { font-family:'Playfair Display',serif;font-size:36px;font-weight:800;color:#7A9E82;line-height:1; }
+    .bcs-label { font-size:11px;color:#B5A080;margin-top:4px; }
+
+    /* Digest preview */
+    .digest-lines { display:grid;gap:6px; }
+    .digest-line { height:8px;background:rgba(245,237,216,0.12);border-radius:4px; }
+
+    /* Score arc preview */
+    .score-preview { display:flex;align-items:center;gap:14px; }
+
+    /* ── Feature grid ── */
+    .feat-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px; }
+    .feat-card { background:var(--off);border-radius:18px;border:1px solid var(--parch);padding:28px;box-shadow:0 2px 10px rgba(42,31,14,0.06);transition:transform 0.2s ease,box-shadow 0.2s ease; }
+    .feat-card:hover { transform:translateY(-3px);box-shadow:0 12px 32px rgba(42,31,14,0.12); }
+    .feat-icon { width:50px;height:50px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:18px; }
+    .feat-title { font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--dark);margin-bottom:10px; }
+    .feat-text  { font-size:13px;color:var(--stone);line-height:1.7; }
+    .feat-new   { display:inline-flex;align-items:center;gap:4px;margin-top:12px;padding:3px 10px;border-radius:100px;background:rgba(212,136,42,0.15);border:1px solid rgba(212,136,42,0.3);font-size:10px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:0.08em; }
+
+    /* ── Comparison table ── */
+    .compare-wrap { overflow-x:auto;-webkit-overflow-scrolling:touch; }
+    .compare-table { width:100%;border-collapse:separate;border-spacing:0;min-width:560px; }
+    .compare-table th { padding:12px 16px;font-family:'Jost',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--stone);text-align:left;border-bottom:2px solid var(--parch); }
+    .compare-table th:first-child { width:42%; }
+    .compare-table td { padding:13px 16px;font-size:13px;font-weight:500;border-bottom:1px solid var(--parch);color:var(--brown); }
+    .compare-table tr:last-child td { border-bottom:none; }
+    .compare-table td.pp { background:rgba(122,158,130,0.08);font-weight:700;color:var(--dark); }
+    .compare-table th.pp { background:rgba(122,158,130,0.1);color:var(--sage-d); }
+    .check  { color:var(--sage);font-weight:700;font-size:15px; }
+    .cross  { color:var(--pebble);font-size:14px; }
+    .partial { color:var(--amber);font-size:12px;font-weight:600; }
+
+    /* ── Steps ── */
+    .steps { display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:0;position:relative; }
+    .step { text-align:center;padding:32px 24px;position:relative; }
+    .step-num { width:52px;height:52px;border-radius:50%;background:var(--brown);color:var(--cream);font-family:'Playfair Display',serif;font-size:22px;font-weight:800;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;box-shadow:0 4px 16px rgba(61,43,16,0.25); }
+    .step-icon { font-size:32px;margin-bottom:14px; }
+    .step-title { font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--dark);margin-bottom:10px; }
+    .step-text  { font-size:13px;color:var(--stone);line-height:1.65; }
+    .step-arrow { position:absolute;right:-14px;top:50%;transform:translateY(-50%);color:var(--parch);font-size:22px;z-index:1; }
+
+    /* ── Pricing ── */
+    .pricing-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;max-width:720px;margin:0 auto; }
+    .pricing-card { background:var(--off);border-radius:20px;border:1.5px solid var(--parch);padding:32px;position:relative;box-shadow:0 2px 12px rgba(42,31,14,0.07); }
+    .pricing-card--pro { background:linear-gradient(150deg,#3D2B10 0%,#6B4C22 100%);border-color:transparent;box-shadow:0 12px 40px rgba(61,43,16,0.3); }
+    .pricing-badge { position:absolute;top:-13px;left:50%;transform:translateX(-50%);background:var(--sage);color:#fff;font-size:10px;font-weight:700;padding:4px 16px;border-radius:100px;text-transform:uppercase;letter-spacing:0.08em;white-space:nowrap; }
+    .pricing-tier { font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.14em;color:var(--stone);margin-bottom:12px; }
+    .pricing-tier--pro { color:var(--sage-l); }
+    .pricing-price { font-family:'Playfair Display',serif;font-size:46px;font-weight:800;color:var(--dark);line-height:1;margin-bottom:6px; }
+    .pricing-price--pro { color:var(--cream); }
+    .pricing-per { font-size:13px;color:var(--stone);margin-bottom:6px; }
+    .pricing-per--pro { color:var(--parch); }
+    .pricing-save { font-size:11px;color:var(--sage);font-weight:600;margin-bottom:22px; }
+    .pricing-save--pro { color:var(--sage-l); }
+    .pricing-div { height:1px;background:var(--parch);margin-bottom:22px; }
+    .pricing-div--pro { background:rgba(245,237,216,0.2); }
+    .pricing-feats { list-style:none;display:grid;gap:9px;margin-bottom:28px; }
+    .pricing-feats li { display:flex;align-items:flex-start;gap:10px;font-size:13px;color:var(--brown);line-height:1.5; }
+    .pricing-feats--pro li { color:var(--cream); }
+    .pcheck { color:var(--sage);font-weight:700;font-size:14px;flex-shrink:0;margin-top:1px; }
+    .pcheck--pro { color:var(--sage-l); }
+
+    /* ── Testimonials ── */
+    .testi-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px; }
+    .testi-card { background:var(--off);border-radius:18px;border:1px solid var(--parch);padding:28px;box-shadow:0 2px 10px rgba(42,31,14,0.06); }
+    .testi-stars { color:var(--wheat);font-size:13px;margin-bottom:14px; }
+    .testi-quote { font-size:34px;color:var(--parch);font-family:'Playfair Display',serif;line-height:1;margin-bottom:12px; }
+    .testi-text { font-size:14px;color:var(--brown);line-height:1.75;margin-bottom:20px;font-style:italic; }
+    .testi-author { display:flex;align-items:center;gap:12px; }
+    .testi-av { width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-weight:700;color:#fff;font-size:16px;flex-shrink:0; }
+    .testi-name { font-weight:700;font-size:13px;color:var(--dark);margin-bottom:2px; }
+    .testi-farm { font-size:11px;color:var(--stone);text-transform:uppercase;letter-spacing:0.08em;font-weight:600; }
+
+    /* ── FAQ ── */
+    .faq-list { display:grid;gap:10px; }
+    details { background:var(--off);border-radius:14px;border:1px solid var(--parch);padding:18px 22px;cursor:pointer; }
+    details[open] { border-color:var(--sage-l); }
+    summary { font-weight:700;font-size:15px;color:var(--dark);list-style:none;display:flex;justify-content:space-between;align-items:center;gap:16px; }
+    summary::after { content:'+';font-size:22px;color:var(--sage);flex-shrink:0;font-weight:400;transition:transform 0.2s; }
+    details[open] summary::after { content:'−'; }
+    .faq-ans { font-size:14px;color:var(--stone);line-height:1.7;margin-top:14px;padding-top:14px;border-top:1px solid var(--parch); }
+
+    /* ── Botanical divider ── */
+    .bot-div { display:flex;align-items:center;gap:12px;padding:8px 0; }
+    .bot-div::before,.bot-div::after { content:'';flex:1;height:1px;background:linear-gradient(to right,transparent,var(--parch),transparent); }
+    .bot-div-center { display:flex;align-items:center;gap:8px;background:var(--cream);border:1px solid var(--parch);border-radius:100px;padding:5px 16px;font-size:16px; }
+
+    /* ── CTA band ── */
+    .cta-band { background:linear-gradient(135deg,var(--brown) 0%,#5a3a18 100%);border-radius:24px;padding:70px 48px;text-align:center;position:relative;overflow:hidden;box-shadow:0 20px 60px rgba(61,43,16,0.3);margin:0 24px; }
+    .cta-band::before { content:'';position:absolute;top:-60px;right:-60px;width:240px;height:240px;border-radius:50%;background:rgba(245,237,216,0.06); }
+    .cta-band::after  { content:'';position:absolute;bottom:-40px;left:-40px;width:180px;height:180px;border-radius:50%;background:rgba(245,237,216,0.04); }
+
+    /* ── Stat bar ── */
+    .stat-bar { display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:0;background:var(--off);border-radius:18px;border:1px solid var(--parch);overflow:hidden;box-shadow:0 2px 10px rgba(42,31,14,0.06); }
+    .stat-item { padding:24px 20px;text-align:center;border-right:1px solid var(--parch); }
+    .stat-item:last-child { border-right:none; }
+    .stat-num  { font-family:'Playfair Display',serif;font-size:36px;font-weight:800;color:var(--dark);line-height:1;margin-bottom:6px; }
+    .stat-lbl  { font-size:11px;color:var(--stone);text-transform:uppercase;letter-spacing:0.1em;font-weight:600; }
+
+    /* ── Footer ── */
+    footer { padding:40px 24px;border-top:1px solid var(--parch);max-width:1060px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px; }
+    .footer-logo { font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:var(--stone); }
+    .footer-logo span { color:var(--sage-l); }
+    .footer-links { display:flex;gap:20px; }
+    .footer-link { font-size:12px;color:var(--pebble);text-decoration:none;font-weight:500;transition:color 0.15s; }
+    .footer-link:hover { color:var(--stone); }
+    .footer-copy { font-size:11px;color:var(--pebble);width:100%;text-align:center; }
+
+    /* ── Responsive ── */
+    @media(max-width:640px) {
+      section { padding:56px 0; }
+      .hero { padding:52px 0 40px; }
+      .step-arrow { display:none; }
+      .cta-band { padding:48px 24px;margin:0 16px;border-radius:20px; }
+      nav .btn { display:none; }
+      .stat-item { border-right:none;border-bottom:1px solid var(--parch); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Nav ── -->
+<nav>
+  <div class="nav-inner">
+    <a href="#" class="nav-logo">
+      <div class="nav-logo-icon">
+        <svg width="22" height="20" viewBox="0 0 26 24" fill="none">
+          <path d="M13 1.5L0.5 8.5H25.5L13 1.5Z" fill="#3D2B10" opacity="0.85"/>
+          <rect x="2" y="8.5" width="22" height="14" rx="1" fill="#3D2B10" opacity="0.10"/>
+          <rect x="2" y="8.5" width="22" height="14" rx="1" stroke="#3D2B10" stroke-width="1.4"/>
+          <path d="M10 22.5L10 16.5 Q13 13.5 16 16.5L16 22.5" stroke="#3D2B10" stroke-width="1.3" fill="#3D2B10" fill-opacity="0.18"/>
+          <rect x="3.5" y="11.5" width="4.5" height="3.5" rx="0.5" fill="#3D2B10" opacity="0.25" stroke="#3D2B10" stroke-width="1"/>
+          <rect x="18" y="11.5" width="4.5" height="3.5" rx="0.5" fill="#3D2B10" opacity="0.25" stroke="#3D2B10" stroke-width="1"/>
+        </svg>
+      </div>
+      <div>
+        <div class="nav-wordmark">Pasture<span>Pal</span></div>
+        <div class="nav-sub">Homestead Assistant</div>
+      </div>
+    </a>
+    <div class="nav-links">
+      <a href="#ai-features" class="nav-link">AI Features</a>
+      <a href="#garden"      class="nav-link">🌱 Garden</a>
+      <a href="#features"    class="nav-link">Features</a>
+      <a href="#pricing"     class="nav-link">Pricing</a>
+      <a href="#faq"         class="nav-link">FAQ</a>
+      <a href="PasturePal.html" class="btn btn--outline" style="padding:8px 18px;font-size:12px;border-radius:100px;">Sign In</a>
+      <a href="PasturePal.html" class="btn btn--primary" style="padding:9px 20px;font-size:12px;border-radius:100px;">Start Free</a>
+    </div>
+  </div>
+</nav>
+
+
+<!-- ── Hero ── -->
+<section class="hero">
+  <!-- Botanical decorations -->
+  <div style="position:absolute;top:-20px;right:calc(50% - 580px);opacity:0.13;pointer-events:none;" class="leaf-sway">
+    <svg width="140" height="160" viewBox="0 0 100 110" fill="none">
+      <path d="M50 105 Q47 78 38 58 Q32 44 28 32" stroke="#7A9E82" stroke-width="1.8" fill="none" stroke-linecap="round" opacity="0.6"/>
+      <path d="M28 32 Q8 22 10 6 Q28 14 28 32Z" fill="#7A9E82" opacity="0.85"/>
+      <path d="M28 32 Q46 18 50 4 Q56 22 28 32Z" fill="#7A9E82" opacity="0.65"/>
+      <path d="M38 58 Q18 52 16 36 Q36 42 38 58Z" fill="#7A9E82" opacity="0.75"/>
+    </svg>
+  </div>
+  <div style="position:absolute;bottom:60px;left:calc(50% - 570px);opacity:0.1;pointer-events:none;transform:scaleX(-1)rotate(10deg);">
+    <svg width="110" height="130" viewBox="0 0 100 110" fill="none">
+      <path d="M50 105 Q47 78 38 58 Q32 44 28 32" stroke="#C8A050" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+      <path d="M28 32 Q8 22 10 6 Q28 14 28 32Z" fill="#C8A050"/>
+      <path d="M38 58 Q18 52 16 36 Q36 42 38 58Z" fill="#C8A050" opacity="0.75"/>
+    </svg>
+  </div>
+
+  <div class="container--narrow">
+    <div class="hero-pill fade-up">✦ Now with 6 AI features + full garden & harvest tracker</div>
+    <h1 class="hero-headline fade-up-2">The <em>complete</em><br>homestead assistant.</h1>
+    <p class="hero-sub fade-up-3">PasturePal combines a smart herd journal, six AI tools found nowhere else, and a full garden & harvest tracker — with zip code–based USDA zone lookup, monthly planting calendars, and harvest reminders. All in one beautiful app.</p>
+    <div class="hero-ctas fade-up-3">
+      <a href="PasturePal.html" class="btn btn--primary btn--lg">Start Free — Up to 10 Animals</a>
+      <a href="#ai-features"   class="btn btn--outline btn--lg">See the AI Features ↓</a>
+    </div>
+    <p class="hero-note">Free forever for up to 10 animals · Pro from $6/month · 14-day trial</p>
+  </div>
+
+  <!-- Dashboard mockup -->
+  <div class="container" style="max-width:540px;margin-top:8px;">
+    <div class="mock-shell float">
+      <div class="mock-titlebar">
+        <div class="mock-dot" style="background:#FF6058;"></div>
+        <div class="mock-dot" style="background:#FFBD2E;"></div>
+        <div class="mock-dot" style="background:#28C840;"></div>
+        <div class="mock-url">pasturePal.app</div>
+      </div>
+      <div class="mock-body">
+        <!-- Main nav tabs -->
+        <div style="display:flex;background:#F5EDD8;border-radius:10px;padding:3px;margin-bottom:12px;gap:3px;">
+          <div style="flex:1;padding:7px 6px;border-radius:8px;background:#3D2B10;color:#F5EDD8;font-family:'Jost',sans-serif;font-size:10px;font-weight:700;text-align:center;">🐄 My Herd</div>
+          <div style="flex:1;padding:7px 6px;border-radius:8px;background:#4D7057;color:#fff;font-family:'Jost',sans-serif;font-size:10px;font-weight:700;text-align:center;">🌱 Garden</div>
+          <div style="flex:1;padding:7px 6px;border-radius:8px;color:#8A7355;font-family:'Jost',sans-serif;font-size:10px;font-weight:500;text-align:center;">🤖 AI</div>
+        </div>
+        <!-- Herd Health Score -->
+        <div style="background:#FBF7EE;border-radius:12px;border:1px solid #E8D9B5;padding:12px 16px;display:flex;align-items:center;gap:16px;margin-bottom:10px;">
+          <svg width="72" height="72" viewBox="0 0 96 96">
+            <circle cx="48" cy="48" r="36" fill="none" stroke="#E8D9B5" stroke-width="7"/>
+            <circle cx="48" cy="48" r="36" fill="none" stroke="#7A9E82" stroke-width="7" stroke-dasharray="204 226" stroke-linecap="round" transform="rotate(-90 48 48)"/>
+            <text x="48" y="44" text-anchor="middle" font-family="Playfair Display,serif" font-size="18" font-weight="800" fill="#7A9E82">A+</text>
+            <text x="48" y="58" text-anchor="middle" font-family="Jost,sans-serif" font-size="9" font-weight="600" fill="#8A7355">96%</text>
+          </svg>
+          <div>
+            <div style="font-family:'Jost',sans-serif;font-size:9px;color:#8A7355;text-transform:uppercase;letter-spacing:0.14em;font-weight:700;margin-bottom:4px;">Herd Health Score</div>
+            <div style="font-family:'Playfair Display',serif;font-size:17px;font-weight:700;color:#7A9E82;margin-bottom:3px;">Excellent!</div>
+            <div style="font-family:'Jost',sans-serif;font-size:11px;color:#8A7355;">All 6 animals are on schedule 🌿</div>
+          </div>
+        </div>
+        <!-- Stats row -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;">
+          <div style="background:#FBF7EE;border-radius:10px;border:1px solid #E8D9B5;border-top:3px solid #7A9E82;padding:10px 8px;text-align:center;"><div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:800;color:#1E1509;">6</div><div style="font-size:8px;color:#8A7355;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Animals</div></div>
+          <div style="background:#FBF7EE;border-radius:10px;border:1px solid #E8D9B5;border-top:3px solid #B85C34;padding:10px 8px;text-align:center;"><div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:800;color:#1E1509;">1</div><div style="font-size:8px;color:#8A7355;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Meds Due</div></div>
+          <div style="background:#FBF7EE;border-radius:10px;border:1px solid #E8D9B5;border-top:3px solid #E8D9B5;padding:10px 8px;text-align:center;"><div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:800;color:#B5A080;">0</div><div style="font-size:8px;color:#8A7355;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Due Soon</div></div>
+        </div>
+        <!-- Animal card -->
+        <div style="background:#FBF7EE;border-radius:10px;border:1px solid #E8D9B5;padding:10px 12px;display:flex;align-items:center;gap:10px;">
+          <div style="width:38px;height:38px;border-radius:9px;background:rgba(184,92,52,0.15);border:1.5px solid rgba(184,92,52,0.3);display:flex;align-items:center;justify-content:center;font-size:20px;">🐄</div>
+          <div style="flex:1;"><div style="font-family:'Playfair Display',serif;font-size:14px;font-weight:700;color:#1E1509;">Daisy</div><div style="font-size:9px;color:#8A7355;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">Hereford Cattle · Female</div></div>
+          <div style="font-size:9px;font-weight:700;padding:3px 9px;border-radius:100px;background:rgba(122,158,130,0.15);color:#4D7057;border:1px solid rgba(122,158,130,0.3);">On Track ✓</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ── Stats bar ── -->
+<section style="padding:0 0 60px;">
+  <div class="container">
+    <div class="stat-bar">
+      <div class="stat-item"><div class="stat-num">6</div><div class="stat-lbl">Unique AI Features</div></div>
+      <div class="stat-item"><div class="stat-num">10</div><div class="stat-lbl">Free Animals</div></div>
+      <div class="stat-item"><div class="stat-num">$6</div><div class="stat-lbl">Per Month Pro</div></div>
+      <div class="stat-item"><div class="stat-num">29</div><div class="stat-lbl">Trackable Plants</div></div>
+      <div class="stat-item"><div class="stat-num">0</div><div class="stat-lbl">Competitors with All This</div></div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ── AI Features Spotlight ── -->
+<section class="ai-section" id="ai-features">
+  <div class="container" style="position:relative;z-index:1;">
+    <div class="center" style="margin-bottom:56px;">
+      <div style="display:inline-flex;align-items:center;gap:8px;background:rgba(122,158,130,0.2);border:1px solid rgba(168,197,173,0.3);border-radius:100px;padding:6px 16px;font-size:11px;color:#A8C5AD;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:20px;">✦ Exclusive AI Features</div>
+      <h2 class="section-title" style="color:#F5EDD8;">6 AI tools no competitor offers.</h2>
+      <p class="section-sub" style="color:#B5A080;margin:0 auto;">Built into PasturePal — not bolted on. Each feature solves a real problem farmers face at odd hours, in the field, far from a vet or garden center.</p>
+    </div>
+
+    <div class="ai-grid">
+
+      <!-- 1. Symptom Checker -->
+      <div class="ai-card">
+        <span class="ai-card-icon">🩺</span>
+        <div class="ai-card-title">AI Symptom Checker</div>
+        <div class="ai-card-text">Describe what you're seeing — lethargic, not eating, limping, bloating — and get an urgency level, three ranked possible causes, immediate action steps, and warning signs to watch for. The 6am panic call to the vet, solved.</div>
+        <div class="ai-preview">
+          <div class="ai-preview-label">Sample result</div>
+          <div class="urgency-badge" style="background:rgba(212,136,42,0.25);color:#D4882A;border:1px solid rgba(212,136,42,0.3);">🟠 See vet within 24–48 hours</div>
+          <div class="cause-row"><div class="cause-dot"></div>Possible hypocalcemia (milk fever)</div>
+          <div class="cause-row"><div class="cause-dot" style="background:#C8A050;"></div>Grass tetany — check magnesium</div>
+          <div class="cause-row"><div class="cause-dot" style="background:#B5A080;"></div>Early-stage ketosis</div>
+        </div>
+        <div class="ai-card-badge">🔒 Pro Feature</div>
+      </div>
+
+      <!-- 2. Per-animal AI -->
+      <div class="ai-card">
+        <span class="ai-card-icon">🤖</span>
+        <div class="ai-card-title">Personal AI for Every Animal</div>
+        <div class="ai-card-text">Every animal gets their own AI tab — pre-loaded with their full history. Weight records, every medication, all reminders, birth records. Ask "Is Daisy's weight trend normal?" without explaining who Daisy is.</div>
+        <div class="ai-preview">
+          <div class="ai-preview-label">Knows your animal's full history</div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><div style="width:22px;height:22px;border-radius:50%;background:rgba(184,92,52,0.25);display:flex;align-items:center;justify-content:center;font-size:12px;">🐄</div><span style="font-size:10px;color:#B5A080;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;">Daisy's AI</span></div>
+          <div style="background:rgba(255,255,255,0.08);border-radius:8px;padding:10px;font-size:11px;color:#E8D9B5;line-height:1.6;">"Daisy is at 970 lbs, up 50 lbs since January — that's an ideal gain rate for a Hereford heifer her age. Her next Bovishield booster is due in February."</div>
+        </div>
+        <div class="ai-card-badge">🔒 Pro Feature</div>
+      </div>
+
+      <!-- 3. Auto-Schedule -->
+      <div class="ai-card">
+        <span class="ai-card-icon">📋</span>
+        <div class="ai-card-title">AI Auto-Schedule</div>
+        <div class="ai-card-text">Add a new animal and AI instantly generates a complete first-year care schedule — vaccinations, deworming, hoof trim, vet visits — all species-specific and pre-dated. One click to add all reminders.</div>
+        <div class="ai-preview">
+          <div class="ai-preview-label">Generated for Rosie (Berkshire Pig)</div>
+          <div class="cause-row"><span style="font-size:13px;">💉</span> Erysipelas vaccine — Jun 28 · Every 6 months</div>
+          <div class="cause-row"><span style="font-size:13px;">🪱</span> Dewormer treatment — Jul 12 · Every 3 months</div>
+          <div class="cause-row"><span style="font-size:13px;">🏥</span> Annual wellness check — Aug 4 · Annually</div>
+        </div>
+        <div class="ai-card-badge">✓ All Users</div>
+      </div>
+
+      <!-- 4. BCS -->
+      <div class="ai-card">
+        <span class="ai-card-icon">📊</span>
+        <div class="ai-card-title">AI Body Condition Score</div>
+        <div class="ai-card-text">Upload a side photo of any animal and AI scores their body condition using the correct scale for their species (1–9 for cattle, 1–5 for goats/pigs). The same metric vets check at every visit — from your phone camera.</div>
+        <div class="ai-preview">
+          <div class="ai-preview-label">Sample score for Hereford cattle</div>
+          <div class="bcs-preview">
+            <div><div class="bcs-score">6<span style="font-size:18px;color:#B5A080;">/9</span></div><div class="bcs-label">Body Condition Score</div></div>
+            <div style="width:1px;height:44px;background:rgba(245,237,216,0.15);"></div>
+            <div><div style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:100px;background:rgba(122,158,130,0.2);border:1px solid rgba(168,197,173,0.25);font-size:10px;font-weight:700;color:#A8C5AD;margin-bottom:6px;">✓ Ideal</div><div style="font-size:10px;color:#B5A080;">Ideal range: 5–7</div></div>
+          </div>
+        </div>
+        <div class="ai-card-badge">🔒 Pro Feature</div>
+      </div>
+
+      <!-- 5. Weekly Digest -->
+      <div class="ai-card">
+        <span class="ai-card-icon">📰</span>
+        <div class="ai-card-title">AI Weekly Homestead Digest</div>
+        <div class="ai-card-text">Every week, AI writes a personalized farm journal entry — your herd's status, this week's priorities pulled from your actual reminders, and a seasonal husbandry tip for your specific animals. Written in the warm journal style of the app.</div>
+        <div class="ai-preview">
+          <div class="ai-preview-label">Written in your app's journal style</div>
+          <div style="font-size:11px;color:#E8D9B5;line-height:1.7;font-style:italic;">"Good morning, farmer! ☀️ It's a warm June week on the homestead. Daisy's hoof trim is coming up Thursday — make sure to check for early signs of…"</div>
+        </div>
+        <div class="ai-card-badge">🔒 Pro Feature</div>
+      </div>
+
+      <!-- 6. Garden Advisor -->
+      <div class="ai-card" style="border-color:rgba(122,158,130,0.3);background:rgba(77,112,87,0.08);">
+        <span class="ai-card-icon">🌱</span>
+        <div class="ai-card-title">AI Garden Advisor</div>
+        <div class="ai-card-text">Zip code → USDA zone → zone-specific garden intelligence. Ask about pest pressure, companion planting, harvest timing, or soil health. The AI knows your exact zone, both frost dates, and every plant growing in your garden — not generic advice for "zone 7."</div>
+        <div class="ai-preview">
+          <div class="ai-preview-label">Zone-aware answer · Zone 7b · June</div>
+          <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;"><div style="width:20px;height:20px;border-radius:50%;background:rgba(77,112,87,0.35);display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;">🌿</div><span style="font-size:10px;color:#A8C5AD;font-weight:600;">User: What should I plant this month?</span></div>
+          <div style="background:rgba(255,255,255,0.08);border-radius:8px;padding:10px;font-size:11px;color:#E8D9B5;line-height:1.65;">"In Zone 7b this June, your first fall tomato transplants go in now — give them 6 weeks to establish before heat peaks. Also start broccoli and kale indoors for August transplant. Okra and sweet potatoes are at peak harvest — check daily."</div>
+        </div>
+        <div class="ai-card-badge" style="background:rgba(77,112,87,0.25);border-color:rgba(168,197,173,0.4);color:#A8C5AD;">🔒 Pro Feature · New</div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ── Garden Spotlight ── -->
+<section id="garden" style="background:linear-gradient(160deg,#F0F5F1 0%,#FBF7EE 60%,#F5EDD8 100%);border-top:1px solid #A8C5AD44;border-bottom:1px solid #A8C5AD44;">
+  <div class="container">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center;">
+
+      <!-- Left: copy -->
+      <div>
+        <div class="eyebrow" style="color:#4D7057;">🌱 New — Garden &amp; Harvest</div>
+        <h2 class="section-title">Your whole homestead,<br>not just the herd.</h2>
+        <p class="section-sub" style="margin-bottom:28px;">PasturePal now tracks your garden too — with planting calendars tailored to your exact zip code, per-plant harvest countdowns, frost date alerts, and an AI garden advisor that knows your USDA zone.</p>
+
+        <div style="display:grid;gap:16px;">
+          <div style="display:flex;gap:14px;align-items:flex-start;">
+            <div style="width:40px;height:40px;border-radius:12px;background:rgba(77,112,87,0.12);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">📍</div>
+            <div>
+              <div style="font-family:'Playfair Display',serif;font-weight:700;font-size:15px;color:#1E1509;margin-bottom:3px;">USDA Zone Lookup</div>
+              <div style="font-size:13px;color:#8A7355;line-height:1.6;">Enter your zip code — we look up your USDA hardiness zone, last frost date, and first fall frost automatically.</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:14px;align-items:flex-start;">
+            <div style="width:40px;height:40px;border-radius:12px;background:rgba(77,112,87,0.12);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">📅</div>
+            <div>
+              <div style="font-family:'Playfair Display',serif;font-weight:700;font-size:15px;color:#1E1509;margin-bottom:3px;">Monthly Planting Calendar</div>
+              <div style="font-size:13px;color:#8A7355;line-height:1.6;">Zone-specific "Sow Now" and "Harvest Now" lists that update every month based on your climate band — cold, temperate, warm, hot, or tropical.</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:14px;align-items:flex-start;">
+            <div style="width:40px;height:40px;border-radius:12px;background:rgba(77,112,87,0.12);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🌾</div>
+            <div>
+              <div style="font-family:'Playfair Display',serif;font-weight:700;font-size:15px;color:#1E1509;margin-bottom:3px;">Harvest Countdown per Plant</div>
+              <div style="font-size:13px;color:#8A7355;line-height:1.6;">Track 29 plant types with progress bars, harvest date estimates, and Google Calendar sync. Get notified when harvest day approaches.</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:14px;align-items:flex-start;">
+            <div style="width:40px;height:40px;border-radius:12px;background:rgba(77,112,87,0.12);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🌱</div>
+            <div>
+              <div style="font-family:'Playfair Display',serif;font-weight:700;font-size:15px;color:#1E1509;margin-bottom:3px;">AI Garden Advisor (Pro)</div>
+              <div style="font-size:13px;color:#8A7355;line-height:1.6;">Ask about pest pressure, companion planting, soil health, or harvest timing — the AI knows your zone, frost dates, and everything growing in your garden.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: mockup -->
+      <div>
+        <div style="background:#FBF7EE;border-radius:20px;border:1.5px solid #E8D9B5;box-shadow:0 20px 60px rgba(42,31,14,0.14);overflow:hidden;">
+          <!-- Zone header -->
+          <div style="background:linear-gradient(135deg,rgba(77,112,87,0.12),#FBF7EE);border-bottom:1px solid #E8D9B5;padding:14px 18px;">
+            <div style="display:flex;align-items:center;gap:12px;">
+              <div>
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;">
+                  <span style="font-family:'Playfair Display',serif;font-size:18px;font-weight:800;color:#4D7057;">Zone 7b</span>
+                  <span style="background:#7A9E82;color:#fff;border-radius:100px;padding:2px 10px;font-family:'Jost',sans-serif;font-size:10px;font-weight:700;">Warm</span>
+                </div>
+                <div style="font-family:'Jost',sans-serif;font-size:11px;color:#8A7355;">📍 Zip 37201 · 🌸 Last frost: Mar 15 · 🍂 First frost: Nov 15</div>
+              </div>
+            </div>
+          </div>
+          <!-- This month card -->
+          <div style="margin:12px;background:rgba(77,112,87,0.08);border:1px solid rgba(122,158,130,0.3);border-radius:12px;padding:12px 14px;">
+            <div style="font-family:'Jost',sans-serif;font-size:9px;color:#8A7355;text-transform:uppercase;letter-spacing:0.1em;font-weight:700;margin-bottom:8px;">📅 June in Zone 7b</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+              <div style="background:#FBF7EE;border-radius:8px;padding:8px 10px;">
+                <div style="font-family:'Jost',sans-serif;font-size:8px;color:#4D7057;text-transform:uppercase;letter-spacing:0.1em;font-weight:700;margin-bottom:4px;">🌱 Sow Now</div>
+                <div style="font-family:'Jost',sans-serif;font-size:10px;color:#3D2B10;line-height:1.9;">• Fall tomatoes<br>• Fall peppers</div>
+              </div>
+              <div style="background:#FBF7EE;border-radius:8px;padding:8px 10px;">
+                <div style="font-family:'Jost',sans-serif;font-size:8px;color:#D4882A;text-transform:uppercase;letter-spacing:0.1em;font-weight:700;margin-bottom:4px;">🌾 Harvest</div>
+                <div style="font-family:'Jost',sans-serif;font-size:10px;color:#3D2B10;line-height:1.9;">• Okra<br>• Sweet potatoes</div>
+              </div>
+            </div>
+            <div style="background:rgba(232,240,233,0.8);border-radius:8px;padding:8px 10px;font-family:'Jost',sans-serif;font-size:10px;color:#4D7057;line-height:1.6;">💡 Peak summer. Mulch heavily, water 2×/day in extreme heat.</div>
+          </div>
+          <!-- Plant cards -->
+          <div style="padding:0 12px 12px;display:grid;gap:8px;">
+            <div style="background:#FBF7EE;border-radius:10px;border:1px solid #E8D9B5;padding:10px 12px;display:flex;align-items:center;gap:10px;">
+              <div style="width:4px;align-self:stretch;border-radius:4px;background:#B85C34;flex-shrink:0;"></div>
+              <div style="font-size:20px;">🍅</div>
+              <div style="flex:1;">
+                <div style="font-family:'Playfair Display',serif;font-size:13px;font-weight:700;color:#1E1509;">Tomato</div>
+                <div style="height:3px;background:#E8D9B5;border-radius:3px;margin-top:4px;overflow:hidden;"><div style="height:100%;width:78%;background:#B85C34;border-radius:3px;"></div></div>
+              </div>
+              <div style="background:rgba(212,136,42,0.15);color:#D4882A;border:1.5px solid rgba(212,136,42,0.35);border-radius:100px;padding:2px 9px;font-family:'Jost',sans-serif;font-size:9px;font-weight:700;white-space:nowrap;">🌾 Ready</div>
+            </div>
+            <div style="background:#FBF7EE;border-radius:10px;border:1px solid #E8D9B5;padding:10px 12px;display:flex;align-items:center;gap:10px;">
+              <div style="width:4px;align-self:stretch;border-radius:4px;background:#7A9E82;flex-shrink:0;"></div>
+              <div style="font-size:20px;">🥒</div>
+              <div style="flex:1;">
+                <div style="font-family:'Playfair Display',serif;font-size:13px;font-weight:700;color:#1E1509;">Cucumber</div>
+                <div style="height:3px;background:#E8D9B5;border-radius:3px;margin-top:4px;overflow:hidden;"><div style="height:100%;width:52%;background:#7A9E82;border-radius:3px;"></div></div>
+              </div>
+              <div style="background:rgba(122,158,130,0.15);color:#4D7057;border:1.5px solid rgba(122,158,130,0.35);border-radius:100px;padding:2px 9px;font-family:'Jost',sans-serif;font-size:9px;font-weight:700;white-space:nowrap;">🌿 Growing</div>
+            </div>
+            <div style="background:#FBF7EE;border-radius:10px;border:1px solid #E8D9B5;padding:10px 12px;display:flex;align-items:center;gap:10px;">
+              <div style="width:4px;align-self:stretch;border-radius:4px;background:#C8907A;flex-shrink:0;"></div>
+              <div style="font-size:20px;">🌿</div>
+              <div style="flex:1;">
+                <div style="font-family:'Playfair Display',serif;font-size:13px;font-weight:700;color:#1E1509;">Basil</div>
+                <div style="height:3px;background:#E8D9B5;border-radius:3px;margin-top:4px;overflow:hidden;"><div style="height:100%;width:100%;background:#7AA860;border-radius:3px;"></div></div>
+              </div>
+              <div style="background:rgba(122,168,96,0.15);color:#4D7057;border:1.5px solid rgba(122,168,96,0.35);border-radius:100px;padding:2px 9px;font-family:'Jost',sans-serif;font-size:9px;font-weight:700;white-space:nowrap;">✅ Harvested</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ── Pain section ── -->
+<section>
+  <div class="container">
+    <div class="bot-div" style="margin-bottom:48px;"><div class="bot-div-center">🌾 Sound familiar?</div></div>
+    <div class="feat-grid">
+      <div class="feat-card">
+        <div class="feat-icon" style="background:rgba(184,92,52,0.12);">📝</div>
+        <div class="feat-title">"When did I last worm the goats?"</div>
+        <div class="feat-text">Paper records get wet, torn, or lost. Important dates disappear exactly when you need them most — like at 6am before chores.</div>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon" style="background:rgba(200,160,80,0.12);">💉</div>
+        <div class="feat-title">"Did she get her annual shot?"</div>
+        <div class="feat-text">Missing vaccination windows puts your whole herd at risk. Scrambling through sticky notes at the vet's office is stressful and embarrassing.</div>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon" style="background:rgba(122,158,130,0.12);">🩺</div>
+        <div class="feat-title">"Something seems off — is it serious?"</div>
+        <div class="feat-text">When an animal looks unwell at 5am, you shouldn't have to guess. PasturePal's AI Symptom Checker gives you an urgency level in seconds.</div>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon" style="background:rgba(77,112,87,0.12);">🌱</div>
+        <div class="feat-title">"When should I plant in my area?"</div>
+        <div class="feat-text">Generic planting calendars don't account for your zone, your frost dates, your climate. PasturePal looks up your USDA zone by zip code and tells you exactly what to plant this month.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ── Core Features ── -->
+<section id="features" style="background:rgba(251,247,238,0.6);border-top:1px solid #E8D9B5;border-bottom:1px solid #E8D9B5;">
+  <div class="container">
+    <div class="section-header center" style="margin-bottom:48px;">
+      <div class="eyebrow">Built for your whole homestead</div>
+      <h2 class="section-title">Everything your herd needs.</h2>
+      <p class="section-sub">Beyond AI, PasturePal packs in every tool a homesteader actually uses — reminders, records, photos, charts, and a calculator for every species.</p>
+    </div>
+
+    <div class="feat-grid">
+
+      <div class="feat-card">
+        <div class="feat-icon" style="background:rgba(212,136,42,0.12);">🔔</div>
+        <div class="feat-title">Smart Reminders</div>
+        <div class="feat-text">7 reminder types — vaccination, feed, hoof trim, worming, calving, vet, or custom — with intelligent recurrence pre-filled and Google Calendar sync on every one.</div>
+        <div class="feat-new">✦ New — 7 types</div>
+      </div>
+
+      <div class="feat-card">
+        <div class="feat-icon" style="background:rgba(66,133,244,0.1);">📅</div>
+        <div class="feat-title">Google Calendar Sync</div>
+        <div class="feat-text">One-click export of any reminder to Google Calendar. Your farm tasks show up in your real calendar — no extra app, no login, no hassle.</div>
+      </div>
+
+      <div class="feat-card">
+        <div class="feat-icon" style="background:rgba(184,92,52,0.12);">💉</div>
+        <div class="feat-title">Full Health Records</div>
+        <div class="feat-text">Log every vaccine, dewormer, and treatment with date and notes. See upcoming doses, overdue medications, and full history — per animal.</div>
+      </div>
+
+      <div class="feat-card">
+        <div class="feat-icon" style="background:rgba(122,158,130,0.12);">📈</div>
+        <div class="feat-title">Weight Tracking Chart</div>
+        <div class="feat-text">Log weights over time and watch them plotted as a beautiful SVG line chart — with a trend indicator showing gain or loss since the first record.</div>
+        <div class="feat-new">✦ New</div>
+      </div>
+
+      <div class="feat-card">
+        <div class="feat-icon" style="background:rgba(200,144,122,0.12);">🐣</div>
+        <div class="feat-title">Gestation Calculator</div>
+        <div class="feat-text">Enter a breeding date and species — PasturePal calculates the expected birth date using correct gestation periods for all 8 species, with one-click calendar sync.</div>
+        <div class="feat-new">✦ New</div>
+      </div>
+
+      <div class="feat-card">
+        <div class="feat-icon" style="background:rgba(122,158,130,0.15);">🏆</div>
+        <div class="feat-title">Herd Health Score</div>
+        <div class="feat-text">A live A+ to F letter grade on your dashboard, calculated from overdue and upcoming tasks. Gamified farm management — keep your score high, keep your animals healthy.</div>
+        <div class="feat-new">✦ New</div>
+      </div>
+
+      <div class="feat-card">
+        <div class="feat-icon" style="background:rgba(120,152,168,0.12);">📷</div>
+        <div class="feat-title">Photo Gallery</div>
+        <div class="feat-text">Upload photos per animal to track health and growth over time. 2 photos free, unlimited with Pro.</div>
+      </div>
+
+      <div class="feat-card">
+        <div class="feat-icon" style="background:rgba(152,136,176,0.12);">🌱</div>
+        <div class="feat-title">Birth Records</div>
+        <div class="feat-text">Track every calving, farrowing, and kidding — calf name, sex, birth date, and notes. Build a complete lineage for your herd over time.</div>
+      </div>
+
+      <div class="feat-card">
+        <div class="feat-icon" style="background:rgba(200,160,80,0.12);">☀️</div>
+        <div class="feat-title">Seasonal Tips</div>
+        <div class="feat-text">5 rotating homestead tips for the current season — spring parasite pressure, summer heat stress, autumn prep, winter feeding. Relevant advice every time you open the app.</div>
+        <div class="feat-new">✦ New</div>
+      </div>
+
+      <div class="feat-card" style="border-color:#A8C5AD;background:linear-gradient(150deg,rgba(232,240,233,0.5),#FBF7EE);">
+        <div class="feat-icon" style="background:rgba(77,112,87,0.14);">🌱</div>
+        <div class="feat-title">Garden &amp; Harvest Tracker</div>
+        <div class="feat-text">Track 29 plant types with progress bars and harvest countdowns. Enter your zip code to get USDA zone–based monthly planting advice, frost date alerts, and harvest notifications.</div>
+        <div class="feat-new" style="background:rgba(77,112,87,0.15);border-color:rgba(77,112,87,0.3);color:#4D7057;">✦ Brand New</div>
+      </div>
+
+      <div class="feat-card" style="border-color:#A8C5AD;background:linear-gradient(150deg,rgba(232,240,233,0.5),#FBF7EE);">
+        <div class="feat-icon" style="background:rgba(77,112,87,0.14);">🌿</div>
+        <div class="feat-title">AI Garden Advisor</div>
+        <div class="feat-text">Ask about pest pressure, companion planting, harvest timing, or soil health — the AI knows your zone, frost dates, and every plant in your garden. Zone-specific answers, not generic advice.</div>
+        <div class="feat-new" style="background:rgba(77,112,87,0.15);border-color:rgba(77,112,87,0.3);color:#4D7057;">🔒 Pro Feature</div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ── Comparison ── -->
+<section>
+  <div class="container">
+    <div class="center section-header" style="margin-bottom:40px;">
+      <div class="eyebrow">How we compare</div>
+      <h2 class="section-title">The only app built like this.</h2>
+      <p class="section-sub">PasturePal is the only homestead app with AI features, a health score, and a design that actually feels like a farm journal.</p>
+    </div>
+    <div class="compare-wrap">
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th>Feature</th>
+            <th class="pp">🌿 PasturePal</th>
+            <th>FarmKeep</th>
+            <th>Livestock Runner</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Free animals</td><td class="pp">10 animals</td><td>3 animals</td><td>20 animals</td></tr>
+          <tr><td>AI Symptom Checker</td><td class="pp"><span class="check">✓</span> Unique</td><td><span class="cross">✗</span></td><td><span class="cross">✗</span></td></tr>
+          <tr><td>Per-animal AI chat</td><td class="pp"><span class="check">✓</span> Unique</td><td><span class="cross">✗</span></td><td><span class="cross">✗</span></td></tr>
+          <tr><td>AI Body Condition Score</td><td class="pp"><span class="check">✓</span> Unique</td><td><span class="cross">✗</span></td><td><span class="cross">✗</span></td></tr>
+          <tr><td>AI Auto-Schedule</td><td class="pp"><span class="check">✓</span> Unique</td><td><span class="cross">✗</span></td><td><span class="cross">✗</span></td></tr>
+          <tr><td>AI Weekly Digest</td><td class="pp"><span class="check">✓</span> Unique</td><td><span class="cross">✗</span></td><td><span class="cross">✗</span></td></tr>
+          <tr><td>Herd Health Score</td><td class="pp"><span class="check">✓</span> Unique</td><td><span class="cross">✗</span></td><td><span class="cross">✗</span></td></tr>
+          <tr><td>Gestation Calculator</td><td class="pp"><span class="check">✓</span></td><td><span class="cross">✗</span></td><td><span class="cross">✗</span></td></tr>
+          <tr><td>Weight tracking chart</td><td class="pp"><span class="check">✓</span></td><td><span class="check">✓</span></td><td><span class="cross">✗</span></td></tr>
+          <tr><td>Google Calendar sync</td><td class="pp"><span class="check">✓</span></td><td><span class="cross">✗</span></td><td><span class="cross">✗</span></td></tr>
+          <tr><td>Browser notifications</td><td class="pp"><span class="check">✓</span></td><td><span class="partial">Partial</span></td><td><span class="cross">✗</span></td></tr>
+          <tr><td>Garden &amp; harvest tracker</td><td class="pp"><span class="check">✓</span> Unique</td><td><span class="cross">✗</span></td><td><span class="cross">✗</span></td></tr>
+          <tr><td>USDA zone + frost date lookup</td><td class="pp"><span class="check">✓</span> Unique</td><td><span class="cross">✗</span></td><td><span class="cross">✗</span></td></tr>
+          <tr><td>AI Garden Advisor</td><td class="pp"><span class="check">✓</span> Unique</td><td><span class="cross">✗</span></td><td><span class="cross">✗</span></td></tr>
+          <tr><td>Beautiful journal design</td><td class="pp"><span class="check">✓</span></td><td><span class="cross">✗</span></td><td><span class="cross">✗</span></td></tr>
+          <tr><td>Pro price</td><td class="pp" style="color:#7A9E82;font-weight:800;">$6/month</td><td>$10+/month</td><td>Free only</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+
+<!-- ── How it works ── -->
+<section style="background:rgba(251,247,238,0.6);border-top:1px solid #E8D9B5;border-bottom:1px solid #E8D9B5;">
+  <div class="container">
+    <div class="center section-header" style="margin-bottom:48px;">
+      <div class="eyebrow">Simple by design</div>
+      <h2 class="section-title">Up and running in 5 minutes.</h2>
+    </div>
+    <div class="steps" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));">
+      <div class="step">
+        <div class="step-icon">🐄</div>
+        <div class="step-num">1</div>
+        <div class="step-title">Add your animals</div>
+        <div class="step-text">Name, breed, species, date of birth. Takes 2 minutes. AI immediately suggests a full care schedule — one click to add all reminders.</div>
+        <div class="step-arrow">→</div>
+      </div>
+      <div class="step">
+        <div class="step-icon">🔔</div>
+        <div class="step-num">2</div>
+        <div class="step-title">Set smart reminders</div>
+        <div class="step-text">7 reminder types with Google Calendar sync. Get browser notifications before anything is due. Never miss a vaccination or hoof trim again.</div>
+        <div class="step-arrow">→</div>
+      </div>
+      <div class="step">
+        <div class="step-icon">🌱</div>
+        <div class="step-num">3</div>
+        <div class="step-title">Set up your garden</div>
+        <div class="step-text">Enter your zip code once — we look up your USDA zone and frost dates. Add plants, track their progress, and get a monthly planting calendar tailored to your exact climate.</div>
+        <div class="step-arrow">→</div>
+      </div>
+      <div class="step">
+        <div class="step-icon">🤖</div>
+        <div class="step-num">4</div>
+        <div class="step-title">Let AI do the rest</div>
+        <div class="step-text">Check your Herd Health Score daily. Use the Symptom Checker when something seems off. Ask the Garden Advisor what to plant this month. Your whole homestead, one app.</div>
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:48px;">
+      <a href="PasturePal.html" class="btn btn--primary btn--lg">Try It Free →</a>
+    </div>
+  </div>
+</section>
+
+
+<!-- ── Pricing ── -->
+<section id="pricing">
+  <div class="container">
+    <div class="center section-header" style="margin-bottom:48px;">
+      <div class="eyebrow">Honest pricing</div>
+      <h2 class="section-title">Priced for small operations.</h2>
+      <p class="section-sub">No per-animal fees, no surprise charges. Start free with up to 10 animals — more than enough for most homesteads.</p>
+    </div>
+    <div class="pricing-grid">
+      <div class="pricing-card">
+        <div class="pricing-tier">Free</div>
+        <div class="pricing-price">$0</div>
+        <div class="pricing-per">forever</div>
+        <div class="pricing-save">&nbsp;</div>
+        <div class="pricing-div"></div>
+        <ul class="pricing-feats">
+          <li><span class="pcheck">✓</span> Up to 10 animals</li>
+          <li><span class="pcheck">✓</span> Full health & medication records</li>
+          <li><span class="pcheck">✓</span> 7 smart reminder types</li>
+          <li><span class="pcheck">✓</span> Google Calendar sync</li>
+          <li><span class="pcheck">✓</span> AI Auto-Schedule (new animal)</li>
+          <li><span class="pcheck">✓</span> Herd Health Score</li>
+          <li><span class="pcheck">✓</span> Gestation Calculator</li>
+          <li><span class="pcheck">✓</span> Weight tracking chart</li>
+          <li><span class="pcheck">✓</span> 2 photos per animal</li>
+          <li><span class="pcheck">✓</span> Browser notifications</li>
+          <li><span class="pcheck" style="color:#4D7057;">✓</span> <strong style="color:#4D7057;">🌱 Garden & harvest tracker</strong></li>
+          <li><span class="pcheck" style="color:#4D7057;">✓</span> <strong style="color:#4D7057;">USDA zone + frost date lookup</strong></li>
+          <li><span class="pcheck" style="color:#4D7057;">✓</span> <strong style="color:#4D7057;">Monthly planting calendar</strong></li>
+        </ul>
+        <a href="PasturePal.html" class="btn btn--outline" style="width:100%;justify-content:center;">Get Started Free</a>
+      </div>
+      <div class="pricing-card pricing-card--pro">
+        <div class="pricing-badge">Most Popular</div>
+        <div class="pricing-tier pricing-tier--pro">Pro</div>
+        <div class="pricing-price pricing-price--pro">$6</div>
+        <div class="pricing-per pricing-per--pro">per month</div>
+        <div class="pricing-save pricing-save--pro">or $49/year — save $23</div>
+        <div class="pricing-div pricing-div--pro"></div>
+        <ul class="pricing-feats pricing-feats--pro">
+          <li><span class="pcheck pcheck--pro">✓</span> <strong>Unlimited animals</strong></li>
+          <li><span class="pcheck pcheck--pro">✓</span> Everything in Free</li>
+          <li><span class="pcheck pcheck--pro">✓</span> <strong>🩺 AI Symptom Checker</strong></li>
+          <li><span class="pcheck pcheck--pro">✓</span> <strong>🤖 Personal AI per animal</strong></li>
+          <li><span class="pcheck pcheck--pro">✓</span> <strong>📊 AI Body Condition Score</strong></li>
+          <li><span class="pcheck pcheck--pro">✓</span> <strong>📰 AI Weekly Digest</strong></li>
+          <li><span class="pcheck pcheck--pro">✓</span> <strong>🌱 AI Garden Advisor</strong></li>
+          <li><span class="pcheck pcheck--pro">✓</span> Unlimited photo gallery</li>
+          <li><span class="pcheck pcheck--pro">✓</span> Priority support</li>
+        </ul>
+        <a href="PasturePal.html" class="btn btn--sage" style="width:100%;justify-content:center;font-size:14px;padding:14px;">Start 14-Day Free Trial</a>
+        <p style="font-size:10px;color:rgba(245,237,216,0.5);text-align:center;margin-top:12px;letter-spacing:0.04em;">Cancel anytime · No hidden fees · Powered by Stripe</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ── Testimonials ── -->
+<section style="background:rgba(251,247,238,0.6);border-top:1px solid #E8D9B5;border-bottom:1px solid #E8D9B5;">
+  <div class="container">
+    <div class="center section-header" style="margin-bottom:40px;">
+      <div class="eyebrow">From the homestead</div>
+      <h2 class="section-title">Real farmers. Real results.</h2>
+    </div>
+    <div class="testi-grid">
+      <div class="testi-card">
+        <div class="testi-stars">★★★★★</div>
+        <div class="testi-quote">"</div>
+        <div class="testi-text">The AI Symptom Checker alone is worth the $6. My Nubian doe was acting off at 5am and I had no idea if it was serious. PasturePal said "monitor closely, possible early hypocalcemia" — called my vet and she was right on time. That feature is a game-changer.</div>
+        <div class="testi-author">
+          <div class="testi-av" style="background:#7A9E82;">S</div>
+          <div><div class="testi-name">Sarah M.</div><div class="testi-farm">🐐 Nubian Goat Farm · Tennessee</div></div>
+        </div>
+      </div>
+      <div class="testi-card">
+        <div class="testi-stars">★★★★★</div>
+        <div class="testi-quote">"</div>
+        <div class="testi-text">My vet was genuinely impressed that I had Biscuit's full vaccination history on my phone — and even more impressed when I showed him the body condition score from the photo. He said it was spot on. For $6 a month I feel like I have a professional farm manager in my pocket.</div>
+        <div class="testi-author">
+          <div class="testi-av" style="background:#B85C34;">J</div>
+          <div><div class="testi-name">Jake R.</div><div class="testi-farm">🐄 Hereford Cattle · Montana</div></div>
+        </div>
+      </div>
+      <div class="testi-card">
+        <div class="testi-stars">★★★★★</div>
+        <div class="testi-quote">"</div>
+        <div class="testi-text">The Auto-Schedule feature when I added my new Berkshire pigs was incredible — it just generated a complete first-year care plan and I added it all in one click. And the Herd Health Score keeps me honest. I check it every morning like it's the weather.</div>
+        <div class="testi-author">
+          <div class="testi-av" style="background:#C8907A;">A</div>
+          <div><div class="testi-name">Amanda K.</div><div class="testi-farm">🐷 Berkshire Pigs · Oregon</div></div>
+        </div>
+      </div>
+      <div class="testi-card" style="border-color:#A8C5AD;">
+        <div class="testi-stars">★★★★★</div>
+        <div class="testi-quote">"</div>
+        <div class="testi-text">I typed in my zip code and it told me I'm in Zone 7b — showed me exactly what to plant this month and when my first frost is. I've been gardening for 15 years and I've never had a tool this specific to my area. Now I track the herd and the garden in the same app. It's the one thing I actually open every day.</div>
+        <div class="testi-author">
+          <div class="testi-av" style="background:#4D7057;">L</div>
+          <div><div class="testi-name">Lisa T.</div><div class="testi-farm">🌱 Mixed Homestead · North Carolina</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ── FAQ ── -->
+<section id="faq">
+  <div class="container--narrow">
+    <div class="center section-header" style="margin-bottom:40px;">
+      <div class="eyebrow">Questions & answers</div>
+      <h2 class="section-title">Frequently asked.</h2>
+    </div>
+    <div class="faq-list">
+      <details>
+        <summary>Do the AI features actually work without internet?</summary>
+        <div class="faq-ans">The AI features (Symptom Checker, Body Condition Score, Personal Animal AI, Auto-Schedule, Weekly Digest) require an internet connection — they call our AI backend. All other features (records, reminders, weight chart, calendar sync, gestation calculator) work offline since your data is saved locally in your browser.</div>
+      </details>
+      <details>
+        <summary>How does the AI Symptom Checker work exactly?</summary>
+        <div class="faq-ans">You select the animal, check off symptoms from a list (or describe them in your own words), and click Analyze. PasturePal sends that information — along with the animal's full record — to Claude (Anthropic's AI). You get back an urgency level, the three most likely causes, immediate actions to take, and warning signs to watch for. We always recommend calling your vet for anything urgent.</div>
+      </details>
+      <details>
+        <summary>What does "personal AI per animal" mean?</summary>
+        <div class="faq-ans">Each animal in your herd has an "Ask AI" tab. That chat is pre-loaded with that animal's complete history — weight records, every medication given, all reminders, birth records, notes. So when you ask "is her weight gain normal?" the AI already knows who you're talking about, how old she is, what she weighs, and what she's been treated with. It's like having a vet's memory for your specific animals.</div>
+      </details>
+      <details>
+        <summary>Is my data safe? What happens if I cancel?</summary>
+        <div class="faq-ans">Your animal records are saved in your browser's local storage — always accessible to you. With Pro, data is backed up to our servers. If you ever cancel, your data stays in your browser and you can export it. We never delete your records.</div>
+      </details>
+      <details>
+        <summary>Do I need a credit card to start?</summary>
+        <div class="faq-ans">No credit card required to start. The Free plan is free forever with up to 10 animals and most features. When you're ready to upgrade to Pro for the AI features, you'll start a 14-day free trial — no charge until the trial ends.</div>
+      </details>
+      <details>
+        <summary>What animals does PasturePal support?</summary>
+        <div class="faq-ans">Cattle, goats, pigs, sheep, horses, chickens, rabbits, ducks, and any "other" livestock. The gestation calculator, AI auto-schedule, and body condition scoring all use species-specific data for each one.</div>
+      </details>
+      <details>
+        <summary>How does the garden zip code lookup work?</summary>
+        <div class="faq-ans">When you tap the 🌱 Garden tab and enter your zip code, PasturePal calls the USDA Plant Hardiness Zone API to instantly identify your hardiness zone (like 7b), your average last spring frost date, and your first fall frost date. That zone info then powers your monthly planting calendar — the "Sow Now" and "Ready to Harvest" lists update automatically every month based on your specific climate band (cold, temperate, warm, hot, or tropical). No account needed; your zone is saved locally.</div>
+      </details>
+      <details>
+        <summary>What does the Garden & Harvest tracker include on the free plan?</summary>
+        <div class="faq-ans">The full garden tracker — zip code lookup, USDA zone, frost dates, monthly planting calendar, adding plants, tracking their status and progress, harvest countdowns, and Google Calendar sync for harvest dates — is available on the free plan. The AI Garden Advisor (where you can ask the AI questions about your zone and specific plants) requires a Pro subscription.</div>
+      </details>
+    </div>
+  </div>
+</section>
+
+
+<!-- ── CTA ── -->
+<section style="padding-bottom:80px;">
+  <div class="cta-band">
+    <div style="position:absolute;bottom:-20px;right:50px;opacity:0.12;pointer-events:none;transform:rotate(-10deg);">
+      <svg width="110" height="140" viewBox="0 0 100 110" fill="none">
+        <path d="M50 105 Q47 78 38 58 Q32 44 28 32" stroke="#F5EDD8" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+        <path d="M28 32 Q8 22 10 6 Q28 14 28 32Z" fill="#F5EDD8"/>
+        <path d="M28 32 Q46 18 50 4 Q56 22 28 32Z" fill="#F5EDD8" opacity="0.7"/>
+        <path d="M38 58 Q18 52 16 36 Q36 42 38 58Z" fill="#F5EDD8" opacity="0.8"/>
+      </svg>
+    </div>
+    <div style="position:relative;">
+      <div style="font-size:48px;margin-bottom:20px;">🌿</div>
+      <h2 class="serif" style="font-size:clamp(28px,4vw,46px);font-weight:800;color:#F5EDD8;margin-bottom:14px;letter-spacing:-0.025em;line-height:1.12;">
+        6 AI features. Garden tracker.<br>10 animals free.<br>$6/month for everything.
+      </h2>
+      <p style="font-size:16px;color:#B5A080;line-height:1.65;max-width:480px;margin:0 auto 36px;">No other homestead app combines AI-powered herd management with a zone-aware garden tracker. Start free today — no credit card, no setup.</p>
+      <a href="PasturePal.html" class="btn btn--sage btn--lg" style="font-size:15px;padding:16px 40px;">Get Started Free →</a>
+      <p style="font-size:11px;color:rgba(181,160,128,0.65);margin-top:16px;letter-spacing:0.04em;">Free for up to 10 animals · Pro from $6/month · Cancel anytime</p>
+    </div>
+  </div>
+</section>
+
+
+<!-- ── Footer ── -->
+<footer>
+  <div class="footer-logo">Pasture<span>Pal</span></div>
+  <div class="footer-links">
+    <a href="#" class="footer-link">Privacy Policy</a>
+    <a href="#" class="footer-link">Terms of Service</a>
+    <a href="mailto:hello@pasturePal.app" class="footer-link">Contact</a>
+    <a href="PasturePal.html" class="footer-link">Open App</a>
+  </div>
+  <div class="footer-copy">© 2026 PasturePal · Built with love for small farms & homesteads 🐄</div>
+</footer>
+
+</body>
+</html>

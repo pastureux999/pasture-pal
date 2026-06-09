@@ -1,0 +1,2792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PasturePal — Your Homestead Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,800;1,400&family=Jost:wght@400;500;600;700&family=DM+Mono&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { min-height: 100%; }
+    body {
+      -webkit-font-smoothing: antialiased;
+      min-height: 100%;
+      background-color: #F7F0DC;
+      background-image:
+        /* Red margin line */
+        linear-gradient(90deg,
+          transparent 58px,
+          rgba(184,92,52,0.22) 58px,
+          rgba(184,92,52,0.22) 60px,
+          transparent 60px
+        ),
+        /* Horizontal rules */
+        repeating-linear-gradient(
+          180deg,
+          transparent 0px,
+          transparent 27px,
+          rgba(160,130,50,0.16) 27px,
+          rgba(160,130,50,0.17) 28.5px
+        );
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useRef, useEffect, useCallback } = React;
+
+    // ── Brand Tokens ──────────────────────────────────────────────────
+    const C = {
+      cream:      "#F5EDD8",
+      offWhite:   "#FBF7EE",
+      parchment:  "#E8D9B5",
+      dark:       "#1E1509",
+      brown:      "#3D2B10",
+      midBrown:   "#6B4C22",
+      stone:      "#8A7355",
+      pebble:     "#B5A080",
+      sage:       "#7A9E82",
+      sageDark:   "#4D7057",
+      sageLight:  "#A8C5AD",
+      sagePale:   "#E8F0E9",
+      white:      "#FFFFFF",
+      terracotta: "#B85C34",
+      dustyRose:  "#C8907A",
+      wheat:      "#C8A050",
+      sky:        "#7898A8",
+      lavender:   "#9888B0",
+      meadow:     "#7AA860",
+      amber:      "#D4882A",
+    };
+
+    const F = {
+      display: "'Playfair Display', Georgia, serif",
+      body:    "'Jost', sans-serif",
+      mono:    "'DM Mono', monospace",
+    };
+
+    // ── Global CSS ────────────────────────────────────────────────────
+    const GLOBAL_CSS = `
+      ::-webkit-scrollbar { width: 5px; height: 5px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: ${C.parchment}; border-radius: 10px; }
+      input:focus, textarea:focus, select:focus {
+        border-color: ${C.sage} !important; outline: none;
+        box-shadow: 0 0 0 3px rgba(122,158,130,0.18) !important;
+      }
+      @keyframes fadeSlideIn {
+        from { opacity: 0; transform: translateY(12px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+      @keyframes modalEnter {
+        from { opacity: 0; transform: scale(0.96) translateY(10px); }
+        to   { opacity: 1; transform: scale(1) translateY(0); }
+      }
+      @keyframes dotPulse {
+        0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+        40%           { transform: scale(1);   opacity: 1; }
+      }
+      @keyframes bellShake {
+        0%,100% { transform: rotate(0deg); }
+        20%     { transform: rotate(-12deg); }
+        40%     { transform: rotate(12deg); }
+        60%     { transform: rotate(-8deg); }
+        80%     { transform: rotate(8deg); }
+      }
+      .pp-animate  { animation: fadeSlideIn 0.3s ease both; }
+      .pp-modal    { animation: modalEnter 0.28s cubic-bezier(0.34,1.56,0.64,1) both; }
+      .pp-card-hover { transition: transform 0.2s ease, box-shadow 0.2s ease; cursor: pointer; }
+      .pp-card-hover:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(42,31,14,0.13), 0 3px 8px rgba(42,31,14,0.07) !important; }
+      .pp-card-hover:active { transform: translateY(0) scale(0.99); }
+      .pp-btn { transition: opacity 0.15s, transform 0.12s, box-shadow 0.15s; }
+      .pp-btn:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+      .pp-btn:active:not(:disabled) { transform: scale(0.97); }
+      .pp-tab { transition: color 0.15s, background 0.15s; }
+      .pp-dot-1 { animation: dotPulse 1.4s ease infinite; }
+      .pp-dot-2 { animation: dotPulse 1.4s ease 0.2s infinite; }
+      .pp-dot-3 { animation: dotPulse 1.4s ease 0.4s infinite; }
+      .pp-bell-shake { animation: bellShake 0.5s ease; }
+      .reminder-type-btn { transition: all 0.15s ease; }
+      .reminder-type-btn:hover { transform: translateY(-2px); }
+
+      /* Paper grain overlay — more visible now */
+      body::after {
+        content: '';
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 9999;
+        opacity: 0.07;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='320'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='320' height='320' filter='url(%23g)'/%3E%3C/svg%3E");
+        background-size: 320px 320px;
+      }
+      @keyframes leafSway {
+        0%, 100% { transform: rotate(-4deg); }
+        50%       { transform: rotate(4deg); }
+      }
+      .pp-leaf { animation: leafSway 5s ease-in-out infinite; transform-origin: bottom center; }
+
+      @keyframes statIn {
+        from { opacity: 0; transform: translateY(10px) scale(0.95); }
+        to   { opacity: 1; transform: translateY(0) scale(1); }
+      }
+      .pp-stat { animation: statIn 0.35s ease both; }
+      .pp-stat:nth-child(2) { animation-delay: 0.06s; }
+      .pp-stat:nth-child(3) { animation-delay: 0.12s; }
+    `;
+
+    // ── Smart Reminder Types ───────────────────────────────────────────
+    const REMINDER_TYPES = [
+      { key: "vaccination", icon: "💉", label: "Vaccination",   color: C.sage,       defaultText: "Vaccination due",        defaultRecurrence: "Annually",       tip: "Annual boosters keep your herd healthy" },
+      { key: "feed",        icon: "🌾", label: "Feed",          color: C.wheat,      defaultText: "Feed & supplement check", defaultRecurrence: "Weekly",         tip: "Regular feed monitoring" },
+      { key: "hoof",        icon: "✂️", label: "Hoof Trim",    color: C.terracotta, defaultText: "Hoof trim & inspection",  defaultRecurrence: "Every 6 weeks",  tip: "Healthy hooves, healthy animals" },
+      { key: "worming",     icon: "🪱", label: "Worming",       color: C.midBrown,   defaultText: "Dewormer treatment",     defaultRecurrence: "Every 3 months", tip: "Rotate dewormers to prevent resistance" },
+      { key: "calving",     icon: "🐣", label: "Calving",       color: C.dustyRose,  defaultText: "Expected calving date",  defaultRecurrence: "One-time",       tip: "Prepare the pen a week before" },
+      { key: "vet",         icon: "🏥", label: "Vet Visit",     color: C.sky,        defaultText: "Vet appointment",        defaultRecurrence: "One-time",       tip: "Schedule regular wellness checks" },
+      { key: "custom",      icon: "📝", label: "Custom",        color: C.stone,      defaultText: "",                       defaultRecurrence: "One-time",       tip: "" },
+    ];
+    const RECURRENCES = ["One-time", "Daily", "Weekly", "Every 2 weeks", "Every 6 weeks", "Monthly", "Every 3 months", "Every 6 months", "Annually"];
+
+    const getReminderType = (key) => REMINDER_TYPES.find(t => t.key === key) || REMINDER_TYPES[6];
+
+    // ── Helpers ───────────────────────────────────────────────────────
+    const uid = () => Math.random().toString(36).slice(2, 9);
+    const fmt = (d) => d ? new Date(d + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—";
+    const daysUntil = (d) => { if (!d) return null; return Math.ceil((new Date(d + "T00:00:00") - new Date()) / 86400000); };
+    const greet = () => { const h = new Date().getHours(); return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"; };
+
+    // ── Seasons ───────────────────────────────────────────────────────
+    const SEASONS = {
+      spring: { name: "Spring", emoji: "🌸", accent: C.dustyRose, bg: `linear-gradient(135deg, #F9EBF0 0%, #EFF6F0 100%)`, tips: ["Parasite pressure peaks in spring — schedule FAMACHA checks and fecal egg counts now.", "Spring vaccinations: CDT for goats & sheep, Bovishield for cattle. Book your vet early.", "Now's the ideal time to rotate pastures — let rested fields grow before grazing.", "Check and trim hooves as the ground softens. Wet conditions increase foot rot risk.", "Start planting comfrey, chicory, and plantain — excellent forage crops for your herd."] },
+      summer: { name: "Summer", emoji: "☀️", accent: C.amber,     bg: `linear-gradient(135deg, #FDF5E0 0%, #FBF7EE 100%)`, tips: ["Cattle need 30–50 gallons of fresh water per day in heat. Check troughs twice daily.", "Watch for heat stress: heavy panting, bunching in shade, and reduced grazing activity.", "Summer is fly season — use fly masks, ear tags, and check for bot fly eggs on legs.", "Avoid worming during peak heat; animals are already stressed. Wait for cooler mornings.", "Top-dress pastures and overseed bare patches now for strong fall regrowth."] },
+      autumn: { name: "Autumn", emoji: "🍂", accent: C.terracotta, bg: `linear-gradient(135deg, #FAEAE0 0%, #FBF7EE 100%)`, tips: ["Fall worming before cold sets in — deworm, then move to clean pasture for best results.", "Pregnancy-check any bred females now so you can plan feed adjustments through winter.", "Prepare winter housing: deep-bed with straw, check roofs, and fix drafts before frost.", "Stock at least 60 days of hay before winter — more if you expect a hard season.", "Trim hooves one final time before the ground freezes to prevent winter hoof issues."] },
+      winter: { name: "Winter", emoji: "❄️", accent: C.sky,        bg: `linear-gradient(135deg, #E8F2F8 0%, #FBF7EE 100%)`, tips: ["Check water sources twice daily — animals can't survive long without unfrozen water.", "Increase hay rations in cold snaps; animals burn more calories just staying warm.", "Monitor body condition scores monthly — adjust feed before animals lose too much weight.", "Winter is perfect for planning: order seeds, review vet records, and update health schedules.", "Watch for respiratory illness — cold stress weakens immunity. Act early if you see symptoms."] },
+    };
+    function getSeason() {
+      const m = new Date().getMonth();
+      if (m >= 2 && m <= 4) return SEASONS.spring;
+      if (m >= 5 && m <= 7) return SEASONS.summer;
+      if (m >= 8 && m <= 10) return SEASONS.autumn;
+      return SEASONS.winter;
+    }
+
+    function getGCalUrl(text, dateStr, notes, animalName) {
+      if (!dateStr) return null;
+      const d = dateStr.replace(/-/g, "");
+      const title = encodeURIComponent("PasturePal" + (animalName ? " — " + animalName : "") + ": " + text);
+      const detail = encodeURIComponent("Homestead reminder from PasturePal." + (notes ? "\n\n" + notes : ""));
+      return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${d}T090000/${d}T100000&details=${detail}`;
+    }
+
+    // ── Notifications ─────────────────────────────────────────────────
+    const canNotify = () => "Notification" in window;
+
+    async function requestNotifPermission() {
+      if (!canNotify()) return false;
+      if (Notification.permission === "granted") return true;
+      const p = await Notification.requestPermission();
+      return p === "granted";
+    }
+
+    function fireNotification(title, body, tag) {
+      if (!canNotify() || Notification.permission !== "granted") return;
+      try { new Notification(title, { body, tag, icon: "" }); } catch(e) {}
+    }
+
+    function scheduleNotifications(animals) {
+      if (!canNotify() || Notification.permission !== "granted") return;
+      animals.forEach(animal => {
+        (animal.reminders || []).forEach(r => {
+          if (!r.due) return;
+          const d = daysUntil(r.due);
+          if (d === 0)  fireNotification("🐄 Due Today — " + animal.name, r.text, r.id + "-0");
+          if (d === 1)  fireNotification("🐄 Due Tomorrow — " + animal.name, r.text, r.id + "-1");
+          if (d === 3)  fireNotification("🐄 Coming Up — " + animal.name, r.text + " in 3 days", r.id + "-3");
+          if (d === 7)  fireNotification("🐄 Reminder — " + animal.name, r.text + " in one week", r.id + "-7");
+        });
+      });
+    }
+
+    // ── Seed Data ─────────────────────────────────────────────────────
+    const SEED = [
+      { id: uid(), name: "Daisy", species: "Cattle", breed: "Hereford", sex: "Female", dob: "2021-03-14", tag: "HF-001", color: C.terracotta, emoji: "🐄",
+        notes: "Gentle girl, first-time heifer this spring. Loves ear scratches.",
+        weight: [{ date: "2024-01-10", lbs: 920 }, { date: "2024-04-01", lbs: 970 }],
+        meds: [{ id: uid(), name: "Ivermectin", date: "2024-03-01", due: "2024-09-01", notes: "Dewormer" }, { id: uid(), name: "Bovishield Gold", date: "2024-02-15", due: "2025-02-15", notes: "Annual booster" }],
+        calving: [{ id: uid(), date: "2024-04-18", calfName: "Buttercup", calfSex: "Female", notes: "Easy birth, healthy calf." }],
+        reminders: [{ id: uid(), type: "hoof", text: "Hoof trim & inspection", due: "2024-08-15", recurrence: "Every 6 weeks", notes: "" }],
+        photos: [] },
+      { id: uid(), name: "Clover", species: "Goat", breed: "Nubian", sex: "Female", dob: "2022-05-02", tag: "NG-007", color: C.sage, emoji: "🐐",
+        notes: "Produces 3qt/day. Loves getting into everything.",
+        weight: [{ date: "2024-03-20", lbs: 145 }],
+        meds: [{ id: uid(), name: "CDT Vaccine", date: "2024-01-20", due: "2025-01-20", notes: "Annual" }],
+        calving: [],
+        reminders: [{ id: uid(), type: "worming", text: "Dewormer treatment", due: "2024-07-30", recurrence: "Every 3 months", notes: "FAMACHA check first" }],
+        photos: [] },
+      { id: uid(), name: "Rosie", species: "Pig", breed: "Berkshire", sex: "Female", dob: "2023-08-11", tag: "BK-003", color: C.dustyRose, emoji: "🐷",
+        notes: "Expected to farrow mid-August.",
+        weight: [{ date: "2024-04-05", lbs: 280 }],
+        meds: [],
+        calving: [],
+        reminders: [{ id: uid(), type: "calving", text: "Prepare farrowing pen", due: "2024-08-01", recurrence: "One-time", notes: "Set up heat lamp & bedding" }],
+        photos: [] },
+    ];
+
+    const STRIPE_CONFIG = { monthlyAmount: 6, yearlyAmount: 49, monthlyPriceId: "price_MONTHLY", yearlyPriceId: "price_YEARLY" };
+
+    function startStripeCheckout(priceId) {
+      alert("Stripe Integration\n\nTo go live:\n1. Add your Stripe publishable key\n2. Create /api/create-checkout-session\n3. Redirect to Stripe Checkout\n\nPrice ID: " + priceId);
+    }
+
+    // ── Garden / Harvest Constants ────────────────────────────────────
+    const FROST_DATES = {
+      "3a":{ last:"May 15",  first:"Sep 15",  climBand:"cold" },
+      "3b":{ last:"May 15",  first:"Sep 15",  climBand:"cold" },
+      "4a":{ last:"May 1",   first:"Sep 30",  climBand:"cold" },
+      "4b":{ last:"May 1",   first:"Sep 30",  climBand:"cold" },
+      "5a":{ last:"Apr 15",  first:"Oct 15",  climBand:"temperate" },
+      "5b":{ last:"Apr 15",  first:"Oct 15",  climBand:"temperate" },
+      "6a":{ last:"Apr 1",   first:"Oct 31",  climBand:"temperate" },
+      "6b":{ last:"Apr 1",   first:"Oct 31",  climBand:"temperate" },
+      "7a":{ last:"Mar 15",  first:"Nov 15",  climBand:"warm" },
+      "7b":{ last:"Mar 15",  first:"Nov 15",  climBand:"warm" },
+      "8a":{ last:"Mar 1",   first:"Nov 30",  climBand:"warm" },
+      "8b":{ last:"Mar 1",   first:"Nov 30",  climBand:"warm" },
+      "9a":{ last:"Feb 15",  first:"Dec 15",  climBand:"hot" },
+      "9b":{ last:"Feb 15",  first:"Dec 15",  climBand:"hot" },
+      "10a":{ last:"Jan 31", first:"Dec 31",  climBand:"hot" },
+      "10b":{ last:"Jan 31", first:"Dec 31",  climBand:"hot" },
+      "11": { last:"none",   first:"none",    climBand:"tropical" },
+    };
+
+    // Per climate band, 12 months of guidance
+    const MONTHLY_TASKS = {
+      cold: [
+        { sow:[],                          harvest:[],                                          tip:"Plan your garden! Order seed catalogs and map out your beds." },
+        { sow:["onions","celery","peppers"],harvest:[],                                          tip:"Start onions & celery indoors 10–12 weeks before last frost." },
+        { sow:["tomatoes","peppers","broccoli","cabbage"], harvest:[],                           tip:"Start tomatoes & peppers indoors 6–8 weeks before last frost." },
+        { sow:["lettuce","spinach","peas","beets"], harvest:[],                                  tip:"Direct sow cold-tolerant crops as soil becomes workable." },
+        { sow:["beans","cucumbers","squash","corn"], harvest:["lettuce","spinach","radishes"],   tip:"After last frost, transplant warm-season seedlings. Big planting month!" },
+        { sow:["beans (2nd)","lettuce (2nd)"], harvest:["lettuce","peas","early beets"],        tip:"Succession plant beans & lettuce for continuous harvest." },
+        { sow:["fall broccoli","fall cabbage"], harvest:["beans","cucumbers","zucchini","beets","tomatoes"], tip:"Start fall crops indoors. Harvest season in full swing." },
+        { sow:["spinach","lettuce","kale"], harvest:["tomatoes","peppers","beans","corn","potatoes"], tip:"Direct sow fall greens; massive summer harvest underway." },
+        { sow:["garlic","cover crops"],    harvest:["winter squash","sweet potatoes","dried beans","peppers"], tip:"Plant garlic 6 weeks before hard freeze. Bring in squash before frost." },
+        { sow:["garlic"],                  harvest:["root vegetables","late kale","carrots"],    tip:"Finish garlic planting. Harvest roots before hard freeze." },
+        { sow:[],                          harvest:["stored crops"],                             tip:"Clean up beds, add compost, mulch garlic for winter." },
+        { sow:[],                          harvest:[],                                          tip:"Rest and plan. Review what worked and order seeds for next year." },
+      ],
+      temperate: [
+        { sow:["onions","leeks"],          harvest:[],                                          tip:"Start onions & leeks indoors. Clean and sharpen garden tools." },
+        { sow:["tomatoes","peppers","eggplant","celery"], harvest:[],                           tip:"Start warm-season crops indoors 8 weeks before last frost." },
+        { sow:["brassicas","lettuce","spinach"], harvest:["overwintered greens"],               tip:"Direct sow cold-tolerant crops. Transplant brassicas to cold frame." },
+        { sow:["peas","beets","carrots","lettuce"], harvest:["spinach","lettuce"],              tip:"Transplant brassicas outdoors. Direct sow peas — they love cool soil." },
+        { sow:["beans","squash","cucumbers","corn","basil"], harvest:["peas","lettuce","beets"], tip:"After last frost, transplant tomatoes & peppers. Big planting month!" },
+        { sow:["beans (2nd)","lettuce (2nd)"], harvest:["peas","beets","broccoli","zucchini"],  tip:"Succession plant for continuous harvest. Harvest daily zucchini!" },
+        { sow:["fall broccoli","fall kale"], harvest:["beans","cucumbers","peppers","tomatoes"], tip:"Start fall brassicas indoors. Peak summer harvest." },
+        { sow:["spinach","lettuce","arugula","turnips"], harvest:["corn","tomatoes","peppers","squash","beans"], tip:"Direct sow fall greens. Massive summer harvest." },
+        { sow:["garlic","cover crops"],    harvest:["winter squash","sweet potatoes","dried beans"], tip:"Plant garlic; pull in winter squash before first frost." },
+        { sow:[],                          harvest:["root crops","kale","chard"],               tip:"Harvest roots. Kale sweetens after frost. Mulch beds." },
+        { sow:[],                          harvest:["stored root crops"],                       tip:"Garden winds down. Compost spent plants. Plan next year." },
+        { sow:["onions (inside)"],         harvest:[],                                          tip:"Order seeds and plan crop rotations for the new year." },
+      ],
+      warm: [
+        { sow:["tomatoes","peppers","eggplant"], harvest:["kale","collards","root crops"],      tip:"Start warm-season crops indoors. Harvest overwintered crops." },
+        { sow:["squash","cucumbers","beans","corn"], harvest:["broccoli","cabbage","greens","carrots"], tip:"Transplant tomatoes & peppers outdoors. Direct sow warm crops." },
+        { sow:["okra","sweet potatoes","basil"], harvest:["strawberries","lettuce","broccoli","peas"], tip:"Spring harvest season! Plant heat-lovers before it gets too hot." },
+        { sow:["beans (2nd)","okra","herbs"], harvest:["beans","squash","cucumbers","tomatoes","berries"], tip:"Peak spring harvest. Succession plant for continuous production." },
+        { sow:[],                          harvest:["tomatoes","peppers","cucumbers","squash","okra","peaches"], tip:"Hot days ahead — harvest early morning, water deeply." },
+        { sow:[],                          harvest:["okra","sweet potatoes","peppers","tomatoes","figs"], tip:"Peak summer. Mulch heavily, water 2x/day in extreme heat." },
+        { sow:["fall tomatoes","fall peppers"], harvest:["sweet potatoes","okra","peppers","melons"], tip:"Start fall tomatoes indoors for September transplant." },
+        { sow:["broccoli","cabbage","kale","collards"], harvest:["okra","peppers","late tomatoes","sweet potatoes"], tip:"Transition to fall garden. Cool-season planting begins." },
+        { sow:["peas","beets","carrots","lettuce","spinach"], harvest:["peppers","tomatoes","fall squash"], tip:"Excellent planting weather returns. Fall garden takes off!" },
+        { sow:["garlic","onions","lettuce (2nd)"], harvest:["peppers","sweet potatoes","fall greens"], tip:"Plant garlic and onions for spring. Enjoy the fall garden." },
+        { sow:["cover crops","radishes"],  harvest:["broccoli","cabbage","carrots","kale","turnips"], tip:"Fall harvest season! Plant cover crops in empty beds." },
+        { sow:["spinach","lettuce","peas"], harvest:["root crops","kale","collards","broccoli"], tip:"Mild winter — many crops grow year-round here!" },
+      ],
+      hot: [
+        { sow:["tomatoes","peppers","cucumbers","beans"], harvest:["root vegetables","collards","kale"], tip:"Start spring crops now before summer heat arrives." },
+        { sow:["squash","corn","sweet potatoes","okra"], harvest:["broccoli","lettuce","peas","strawberries"], tip:"Spring planting window opens. Get warm-season crops in early." },
+        { sow:[],                          harvest:["tomatoes","berries","peas","radishes","beans"], tip:"Peak spring harvest. Plant heat-lovers before the heat sets in." },
+        { sow:[],                          harvest:["tomatoes","cucumbers","squash","peppers","citrus"], tip:"Heat intensifies. Deep water and afternoon shade needed." },
+        { sow:[],                          harvest:["okra","sweet potatoes","peppers","melons","peaches"], tip:"Peak heat — focus on heat-lovers. Plant tropicals." },
+        { sow:[],                          harvest:["okra","peppers","sweet potatoes","avocados"], tip:"Hot season. Harvest what's ready; minimize new planting." },
+        { sow:["tomatoes","peppers","winter squash"], harvest:["okra","sweet potatoes","peppers","melons"], tip:"Start fall crops for September planting. Monsoon aids growth." },
+        { sow:["broccoli","cauliflower","kale","cabbage"], harvest:["sweet potatoes","okra","late tomatoes"], tip:"Transition to fall garden. Cooler nights ahead!" },
+        { sow:["beans","peas","cucumbers","beets","carrots"], harvest:["peppers","tomatoes","fall squash"], tip:"Fall planting season opens. Most productive time of year!" },
+        { sow:["garlic","onions","lettuce","spinach","radishes"], harvest:["fall tomatoes","peppers","root crops"], tip:"Peak fall season. Plant cool-season crops through November." },
+        { sow:["peas","lettuce","spinach","carrots"], harvest:["broccoli","cauliflower","kale","beets"], tip:"Prime growing season. Excellent harvest." },
+        { sow:["tomatoes","peppers","lettuce","peas"], harvest:["citrus","root crops","cool-season greens"], tip:"Year-round garden shines. Start spring crops early!" },
+      ],
+      tropical: [
+        { sow:["tropical fruits","yuca","sweet potatoes"], harvest:["citrus","papaya","bananas","winter vegetables"], tip:"Dry season gardening. Irrigate regularly." },
+        { sow:[],                          harvest:["citrus","avocado","papaya","tropical vegetables"], tip:"Dry season peak. Water deeply twice daily." },
+        { sow:["tomatoes","beans","peppers"], harvest:["avocado","citrus","tropical crops"],    tip:"Plant before rainy season. Heat-tolerant crops only." },
+        { sow:[],                          harvest:["mangoes","lychee","peppers","tropical greens"], tip:"Rainy season starts. Excellent for tropical plants." },
+        { sow:["sweet potatoes","yuca","taro"], harvest:["mangoes","pineapple","tropical fruits"], tip:"Plant root crops in rich, well-drained soil." },
+        { sow:[],                          harvest:["mangoes","pineapple","papaya","bananas","sweet potatoes"], tip:"Peak tropical harvest. Watch for fungal disease in high humidity." },
+        { sow:[],                          harvest:["rambutan","tropical crops","yuca"],        tip:"Rainy season continues. Focus on harvest and storage." },
+        { sow:["winter vegetables"],       harvest:["tropical fruits","yuca","sweet potatoes"], tip:"Start cool-season vegetables for fall growing." },
+        { sow:["broccoli","cabbage","tomatoes","beans"], harvest:["citrus","avocado","tropical crops"], tip:"Dry season approaches — great for warm-season vegetables." },
+        { sow:["garlic","onions","carrots","herbs"], harvest:["peppers","tomatoes","tropical fruits"], tip:"Best planting season for temperate vegetables." },
+        { sow:["lettuce","peas","spinach"], harvest:["vegetables","citrus","papaya"],           tip:"Year-round harvest continues. Ideal growing conditions." },
+        { sow:["tropical fruits","sweet potatoes"], harvest:["citrus","papaya","bananas","root crops"], tip:"Productive dry season. Harvest bountifully." },
+      ],
+    };
+
+    const COMMON_PLANTS = [
+      { name:"Tomato",        emoji:"🍅", type:"Vegetable", daysToHarvest:75,  color:C.terracotta },
+      { name:"Zucchini",      emoji:"🥒", type:"Vegetable", daysToHarvest:50,  color:C.sage },
+      { name:"Cucumber",      emoji:"🥒", type:"Vegetable", daysToHarvest:60,  color:C.sageDark },
+      { name:"Bell Pepper",   emoji:"🫑", type:"Vegetable", daysToHarvest:70,  color:C.meadow },
+      { name:"Lettuce",       emoji:"🥬", type:"Vegetable", daysToHarvest:45,  color:C.sageLight },
+      { name:"Kale",          emoji:"🥦", type:"Vegetable", daysToHarvest:55,  color:C.sageDark },
+      { name:"Spinach",       emoji:"🥬", type:"Vegetable", daysToHarvest:40,  color:C.sage },
+      { name:"Broccoli",      emoji:"🥦", type:"Vegetable", daysToHarvest:80,  color:C.sage },
+      { name:"Carrot",        emoji:"🥕", type:"Vegetable", daysToHarvest:75,  color:C.amber },
+      { name:"Beet",          emoji:"🫐", type:"Vegetable", daysToHarvest:60,  color:C.dustyRose },
+      { name:"Green Bean",    emoji:"🫘", type:"Vegetable", daysToHarvest:55,  color:C.meadow },
+      { name:"Corn",          emoji:"🌽", type:"Vegetable", daysToHarvest:85,  color:C.wheat },
+      { name:"Winter Squash", emoji:"🎃", type:"Vegetable", daysToHarvest:100, color:C.amber },
+      { name:"Sweet Potato",  emoji:"🍠", type:"Vegetable", daysToHarvest:120, color:C.terracotta },
+      { name:"Potato",        emoji:"🥔", type:"Vegetable", daysToHarvest:90,  color:C.midBrown },
+      { name:"Garlic",        emoji:"🧄", type:"Vegetable", daysToHarvest:240, color:C.pebble },
+      { name:"Onion",         emoji:"🧅", type:"Vegetable", daysToHarvest:100, color:C.wheat },
+      { name:"Pea",           emoji:"🟢", type:"Vegetable", daysToHarvest:60,  color:C.meadow },
+      { name:"Okra",          emoji:"🌿", type:"Vegetable", daysToHarvest:55,  color:C.sageDark },
+      { name:"Strawberry",    emoji:"🍓", type:"Fruit",     daysToHarvest:60,  color:C.terracotta },
+      { name:"Watermelon",    emoji:"🍉", type:"Fruit",     daysToHarvest:80,  color:C.meadow },
+      { name:"Basil",         emoji:"🌿", type:"Herb",      daysToHarvest:30,  color:C.sage },
+      { name:"Cilantro",      emoji:"🌿", type:"Herb",      daysToHarvest:45,  color:C.sageLight },
+      { name:"Dill",          emoji:"🌿", type:"Herb",      daysToHarvest:40,  color:C.sage },
+      { name:"Parsley",       emoji:"🌿", type:"Herb",      daysToHarvest:70,  color:C.sageDark },
+      { name:"Lavender",      emoji:"💜", type:"Herb",      daysToHarvest:90,  color:C.lavender },
+      { name:"Sunflower",     emoji:"🌻", type:"Flower",    daysToHarvest:80,  color:C.wheat },
+      { name:"Chamomile",     emoji:"🌼", type:"Flower",    daysToHarvest:60,  color:C.wheat },
+      { name:"Custom Plant",  emoji:"🌱", type:"Other",     daysToHarvest:60,  color:C.stone },
+    ];
+
+    const PLANT_STATUSES = [
+      { label:"Seedling",          emoji:"🌱", color:C.sageLight },
+      { label:"Growing",           emoji:"🌿", color:C.sage },
+      { label:"Flowering",         emoji:"🌸", color:C.dustyRose },
+      { label:"Ready to Harvest",  emoji:"🌾", color:C.amber },
+      { label:"Harvested",         emoji:"✅", color:C.meadow },
+      { label:"Failed",            emoji:"❌", color:C.terracotta },
+    ];
+
+    function getZoneClimBand(zone) {
+      if (!zone) return "temperate";
+      const fd = FROST_DATES[zone.toLowerCase()];
+      return fd ? fd.climBand : "temperate";
+    }
+
+    function getMonthlyTask(zone) {
+      const band = getZoneClimBand(zone);
+      const tasks = MONTHLY_TASKS[band] || MONTHLY_TASKS.temperate;
+      return tasks[new Date().getMonth()];
+    }
+
+    function daysInGround(plantedDate) {
+      if (!plantedDate) return 0;
+      return Math.floor((Date.now() - new Date(plantedDate).getTime()) / 86400000);
+    }
+
+    function getPlantProgress(plant) {
+      if (!plant.planted) return 0;
+      const d = daysInGround(plant.planted);
+      return Math.min(100, Math.round((d / plant.daysToHarvest) * 100));
+    }
+
+    function getGardenGCalUrl(plantName, dateStr, notes) {
+      if (!dateStr) return null;
+      const d = dateStr.replace(/-/g, "");
+      const title = encodeURIComponent("🌱 PasturePal Harvest: " + plantName);
+      const detail = encodeURIComponent("Garden reminder from PasturePal." + (notes ? "\n\n" + notes : ""));
+      return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${d}T080000/${d}T090000&details=${detail}`;
+    }
+
+    // ── AI (requires backend proxy) ───────────────────────────────────
+    async function askAI(msgs, animals) {
+      throw new Error("AI requires a backend proxy.");
+    }
+
+    // ── UI Primitives ──────────────────────────────────────────────────
+    function Badge({ color = C.sage, children, small, outline }) {
+      return (
+        <span style={{ background: outline ? "transparent" : color + "1A", color: outline ? C.stone : color, border: `1px solid ${outline ? C.parchment : color + "55"}`, borderRadius: 100, padding: small ? "2px 8px" : "3px 10px", fontSize: small ? 10 : 11, fontFamily: F.body, fontWeight: 600, letterSpacing: "0.04em", whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 3 }}>
+          {children}
+        </span>
+      );
+    }
+
+    function Card({ children, style = {}, onClick, hoverable }) {
+      return (
+        <div onClick={onClick} className={hoverable || onClick ? "pp-card-hover" : ""} style={{ background: C.offWhite, borderRadius: 16, border: `1px solid ${C.parchment}`, boxShadow: "0 2px 8px rgba(42,31,14,0.06), 0 1px 2px rgba(42,31,14,0.04)", padding: 20, cursor: onClick ? "pointer" : "default", ...style }}>
+          {children}
+        </div>
+      );
+    }
+
+    function Btn({ children, onClick, variant = "primary", small, full, style = {}, disabled, icon }) {
+      const V = {
+        primary: { background: C.brown,      color: C.cream,      border: "none", boxShadow: "0 2px 8px rgba(61,43,16,0.3)" },
+        sage:    { background: C.sage,       color: C.white,      border: "none", boxShadow: "0 2px 8px rgba(122,158,130,0.3)" },
+        amber:   { background: C.amber,      color: C.white,      border: "none", boxShadow: "0 2px 8px rgba(212,136,42,0.3)" },
+        ghost:   { background: "transparent",color: C.brown,      border: `1.5px solid ${C.parchment}` },
+        outline: { background: "transparent",color: C.dark,       border: `1.5px solid ${C.midBrown}44` },
+        sky:     { background: C.sky + "18", color: C.sky,        border: `1.5px solid ${C.sky}55` },
+      };
+      return (
+        <button disabled={disabled} onClick={onClick} className="pp-btn" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, fontFamily: F.body, fontWeight: 600, borderRadius: 10, cursor: disabled ? "not-allowed" : "pointer", padding: small ? "7px 16px" : "11px 24px", fontSize: small ? 12 : 13, width: full ? "100%" : "auto", opacity: disabled ? 0.45 : 1, letterSpacing: "0.02em", ...V[variant], ...style }}>
+          {icon && <span>{icon}</span>}{children}
+        </button>
+      );
+    }
+
+    function FieldLabel({ children }) {
+      return <label style={{ display: "block", fontFamily: F.body, fontSize: 10, color: C.stone, marginBottom: 6, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em" }}>{children}</label>;
+    }
+
+    function Input({ label, value, onChange, type = "text", placeholder, rows }) {
+      const base = { width: "100%", boxSizing: "border-box", padding: "10px 14px", borderRadius: 10, border: `1.5px solid ${C.parchment}`, fontFamily: F.body, fontSize: 14, background: C.white, color: C.dark, outline: "none", transition: "border-color 0.15s, box-shadow 0.15s" };
+      return (
+        <div style={{ marginBottom: 14 }}>
+          {label && <FieldLabel>{label}</FieldLabel>}
+          {rows ? <textarea value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} rows={rows} style={{ ...base, resize: "vertical" }} /> : <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} style={base} />}
+        </div>
+      );
+    }
+
+    function Select({ label, value, onChange, options }) {
+      return (
+        <div style={{ marginBottom: 14 }}>
+          {label && <FieldLabel>{label}</FieldLabel>}
+          <select value={value} onChange={e => onChange(e.target.value)} style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: `1.5px solid ${C.parchment}`, fontFamily: F.body, fontSize: 14, background: C.white, color: C.dark, cursor: "pointer" }}>
+            {options.map(o => <option key={o}>{o}</option>)}
+          </select>
+        </div>
+      );
+    }
+
+    function Divider({ label }) {
+      return (
+        <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "20px 0 16px" }}>
+          <div style={{ flex: 1, height: 1, background: C.parchment }} />
+          {label && <span style={{ fontFamily: F.body, fontSize: 10, color: C.pebble, textTransform: "uppercase", letterSpacing: "0.14em", fontWeight: 600 }}>{label}</span>}
+          <div style={{ flex: 1, height: 1, background: C.parchment }} />
+        </div>
+      );
+    }
+
+    function Modal({ title, onClose, children, wide }) {
+      return (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(30,21,9,0.72)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, backdropFilter: "blur(8px)" }} onClick={e => e.target === e.currentTarget && onClose()}>
+          <div className="pp-modal" style={{ background: C.offWhite, borderRadius: 20, padding: "28px 28px 24px", maxWidth: wide ? 560 : 500, width: "100%", maxHeight: "92vh", overflowY: "auto", border: `1.5px solid ${C.parchment}`, boxShadow: "0 40px 100px rgba(30,21,9,0.3)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: title ? 24 : 8 }}>
+              {title ? <h3 style={{ margin: 0, fontFamily: F.display, color: C.dark, fontSize: 22, fontWeight: 700 }}>{title}</h3> : <div />}
+              <button onClick={onClose} style={{ background: C.parchment, border: "none", borderRadius: 8, width: 32, height: 32, cursor: "pointer", color: C.stone, fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+            </div>
+            {children}
+          </div>
+        </div>
+      );
+    }
+
+    // ── Highland Cow Logo ─────────────────────────────────────────────
+    function HighlandCowLogo({ size = 48, color = C.brown }) {
+      return (
+        <svg width={size} height={size} viewBox="0 0 120 100" fill="none">
+          <path d="M28 38 Q10 22 4 14 Q6 20 14 28 Q20 34 28 38Z" fill={color} opacity="0.9"/>
+          <path d="M92 38 Q110 22 116 14 Q114 20 106 28 Q100 34 92 38Z" fill={color} opacity="0.9"/>
+          <path d="M28 38 Q12 24 5 13" stroke={color} strokeWidth="2.5" strokeLinecap="round" fill="none"/>
+          <path d="M92 38 Q108 24 115 13" stroke={color} strokeWidth="2.5" strokeLinecap="round" fill="none"/>
+          <ellipse cx="60" cy="52" rx="28" ry="26" fill={color} opacity="0.08"/>
+          <ellipse cx="60" cy="52" rx="28" ry="26" stroke={color} strokeWidth="1.5" fill="none"/>
+          <path d="M34 38 Q38 30 42 36 Q46 28 50 35 Q54 26 58 34 Q62 26 66 34 Q70 28 74 35 Q78 30 82 36 Q86 30 88 36" stroke={color} strokeWidth="2" fill="none" strokeLinecap="round"/>
+          <path d="M32 42 Q36 34 40 40 Q44 32 48 38 Q52 30 56 37 Q60 29 64 37 Q68 31 72 38 Q76 33 80 40 Q84 34 88 42" stroke={color} strokeWidth="1.7" fill="none" strokeLinecap="round"/>
+          <path d="M33 46 Q37 39 41 44 Q45 37 49 43 Q53 36 57 42 Q61 35 65 42 Q69 37 73 43 Q77 39 81 44 Q85 39 87 46" stroke={color} strokeWidth="1.4" fill="none" strokeLinecap="round"/>
+          <path d="M35 50 Q39 44 43 49 Q47 43 51 48 Q55 42 59 48 Q63 42 67 48 Q71 43 75 49 Q79 44 83 50" stroke={color} strokeWidth="1.1" fill="none" strokeLinecap="round"/>
+          <path d="M34 48 Q30 54 32 62 Q34 56 36 52" stroke={color} strokeWidth="1.3" fill="none" strokeLinecap="round"/>
+          <path d="M86 48 Q90 54 88 62 Q86 56 84 52" stroke={color} strokeWidth="1.3" fill="none" strokeLinecap="round"/>
+          <circle cx="49" cy="52" r="3.5" fill={color} opacity="0.15"/>
+          <circle cx="49" cy="52" r="3.5" stroke={color} strokeWidth="1.2" fill="none"/>
+          <circle cx="48.5" cy="51.5" r="1.5" fill={color}/>
+          <circle cx="71" cy="52" r="3.5" fill={color} opacity="0.15"/>
+          <circle cx="71" cy="52" r="3.5" stroke={color} strokeWidth="1.2" fill="none"/>
+          <circle cx="70.5" cy="51.5" r="1.5" fill={color}/>
+          <ellipse cx="60" cy="68" rx="14" ry="9" fill={color} opacity="0.12"/>
+          <ellipse cx="60" cy="68" rx="14" ry="9" stroke={color} strokeWidth="1.4" fill="none"/>
+          <ellipse cx="54" cy="70" rx="3" ry="2" fill={color} opacity="0.5"/>
+          <ellipse cx="66" cy="70" rx="3" ry="2" fill={color} opacity="0.5"/>
+          <path d="M54 67 Q60 65 66 67" stroke={color} strokeWidth="1" strokeLinecap="round" fill="none"/>
+          <path d="M56 77 Q58 82 60 84 Q62 82 64 77" stroke={color} strokeWidth="1.3" strokeLinecap="round" fill="none"/>
+          <path d="M34 46 Q26 42 24 50 Q30 46 36 50" stroke={color} strokeWidth="1.5" fill="none" strokeLinecap="round"/>
+          <path d="M86 46 Q94 42 96 50 Q90 46 84 50" stroke={color} strokeWidth="1.5" fill="none" strokeLinecap="round"/>
+        </svg>
+      );
+    }
+
+    // ── Notification Banner ───────────────────────────────────────────
+    function NotificationBanner({ onEnable, onDismiss }) {
+      return (
+        <div className="pp-animate" style={{ background: `linear-gradient(135deg, ${C.sagePale}, ${C.offWhite})`, border: `1.5px solid ${C.sageLight}`, borderRadius: 16, padding: "16px 18px", marginBottom: 20, display: "flex", alignItems: "center", gap: 14 }}>
+          <div style={{ fontSize: 28 }}>🔔</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontFamily: F.display, fontWeight: 700, color: C.dark, fontSize: 15, marginBottom: 3 }}>Enable Homestead Reminders</div>
+            <div style={{ fontFamily: F.body, fontSize: 12, color: C.stone, lineHeight: 1.55 }}>Get notified when vaccinations, worming, hoof trims, or calvings are coming up.</div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
+            <Btn small variant="sage" onClick={onEnable}>Enable</Btn>
+            <button onClick={onDismiss} style={{ background: "none", border: "none", cursor: "pointer", fontFamily: F.body, fontSize: 11, color: C.pebble, textAlign: "center" }}>Later</button>
+          </div>
+        </div>
+      );
+    }
+
+    // ── Smart Reminder Modal ──────────────────────────────────────────
+    function SmartReminderModal({ onSave, onClose, animals, preType, preAnimalId }) {
+      const [type, setType]           = useState(preType || "custom");
+      const [animalId, setAnimalId]   = useState(preAnimalId || (animals[0]?.id || ""));
+      const [text, setText]           = useState("");
+      const [due, setDue]             = useState("");
+      const [recurrence, setRecurrence] = useState("One-time");
+      const [notes, setNotes]         = useState("");
+      const [saved, setSaved]         = useState(false);
+      const [savedReminder, setSavedReminder] = useState(null);
+
+      const rt = getReminderType(type);
+
+      useEffect(() => {
+        const rt = getReminderType(type);
+        setText(rt.defaultText);
+        setRecurrence(rt.defaultRecurrence);
+      }, [type]);
+
+      const selectedAnimal = animals.find(a => a.id === animalId);
+
+      function handleSave() {
+        const r = { id: uid(), type, text: text || rt.defaultText, due, recurrence, notes };
+        setSavedReminder(r);
+        setSaved(true);
+        onSave(animalId, r);
+      }
+
+      if (saved && savedReminder) {
+        const gcUrl = getGCalUrl(savedReminder.text, savedReminder.due, savedReminder.notes, selectedAnimal?.name);
+        return (
+          <Modal title="Reminder Added!" onClose={onClose}>
+            <div style={{ textAlign: "center", padding: "10px 0 20px" }}>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>{rt.icon}</div>
+              <div style={{ fontFamily: F.display, fontSize: 20, color: C.dark, fontWeight: 700, marginBottom: 6 }}>{savedReminder.text}</div>
+              {savedReminder.due && <div style={{ fontFamily: F.body, fontSize: 14, color: C.stone, marginBottom: 24 }}>Due {fmt(savedReminder.due)} · {savedReminder.recurrence}</div>}
+              <div style={{ display: "grid", gap: 10 }}>
+                {gcUrl && (
+                  <a href={gcUrl} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "12px 20px", background: "#4285F4", color: C.white, borderRadius: 10, fontFamily: F.body, fontWeight: 600, fontSize: 13, textDecoration: "none", boxShadow: "0 2px 8px rgba(66,133,244,0.3)" }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/></svg>
+                    Add to Google Calendar
+                  </a>
+                )}
+                <Btn full variant="ghost" onClick={onClose}>Done</Btn>
+              </div>
+            </div>
+          </Modal>
+        );
+      }
+
+      return (
+        <Modal title="Add Smart Reminder" onClose={onClose} wide>
+          {/* Type picker */}
+          <div style={{ marginBottom: 18 }}>
+            <FieldLabel>Reminder Type</FieldLabel>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+              {REMINDER_TYPES.map(t => (
+                <button key={t.key} onClick={() => setType(t.key)} className="reminder-type-btn" style={{ padding: "10px 6px", borderRadius: 12, border: `2px solid ${type === t.key ? t.color : C.parchment}`, background: type === t.key ? t.color + "15" : C.white, cursor: "pointer", textAlign: "center" }}>
+                  <div style={{ fontSize: 20, marginBottom: 4 }}>{t.icon}</div>
+                  <div style={{ fontFamily: F.body, fontSize: 10, fontWeight: type === t.key ? 700 : 500, color: type === t.key ? t.color : C.stone, letterSpacing: "0.02em" }}>{t.label}</div>
+                </button>
+              ))}
+            </div>
+            {rt.tip && <div style={{ fontFamily: F.body, fontSize: 12, color: C.stone, marginTop: 8, fontStyle: "italic" }}>💡 {rt.tip}</div>}
+          </div>
+
+          {/* Animal selector (only when coming from dashboard) */}
+          {!preAnimalId && animals.length > 0 && (
+            <div style={{ marginBottom: 14 }}>
+              <FieldLabel>Animal</FieldLabel>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {animals.map(a => (
+                  <button key={a.id} onClick={() => setAnimalId(a.id)} style={{ padding: "6px 14px", borderRadius: 100, border: `2px solid ${animalId === a.id ? a.color : C.parchment}`, background: animalId === a.id ? a.color + "15" : C.white, cursor: "pointer", fontFamily: F.body, fontSize: 12, fontWeight: animalId === a.id ? 700 : 500, color: animalId === a.id ? a.color : C.stone }}>
+                    {a.emoji} {a.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <Input label="Reminder" value={text} onChange={setText} placeholder={rt.defaultText || "What needs to be done?"} />
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+            <Input label="Due Date" value={due} onChange={setDue} type="date" />
+            <Select label="Repeats" value={recurrence} onChange={setRecurrence} options={RECURRENCES} />
+          </div>
+
+          <Input label="Notes (optional)" value={notes} onChange={setNotes} placeholder="Any extra details…" rows={2} />
+
+          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+            <Btn variant="ghost" small onClick={onClose}>Cancel</Btn>
+            <Btn variant="primary" small disabled={!text && !rt.defaultText} onClick={handleSave}>Save Reminder</Btn>
+          </div>
+        </Modal>
+      );
+    }
+
+    // ── Photo Upload ──────────────────────────────────────────────────
+    function PhotoUpload({ photos = [], onAdd, onRemove, isPro, maxFree = 2 }) {
+      const inputRef = useRef();
+      const canAdd = isPro || photos.length < maxFree;
+      const handleFile = e => {
+        const file = e.target.files[0]; if (!file) return;
+        const reader = new FileReader();
+        reader.onload = ev => onAdd({ id: uid(), src: ev.target.result, date: new Date().toISOString().split("T")[0] });
+        reader.readAsDataURL(file); e.target.value = "";
+      };
+      return (
+        <div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 10 }}>
+            {photos.map(p => (
+              <div key={p.id} style={{ position: "relative", borderRadius: 12, overflow: "hidden", aspectRatio: "1", border: `1.5px solid ${C.parchment}` }}>
+                <img src={p.src} alt="animal" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                <button onClick={() => onRemove(p.id)} style={{ position: "absolute", top: 5, right: 5, background: "rgba(30,21,9,0.7)", border: "none", borderRadius: 6, width: 24, height: 24, color: C.cream, cursor: "pointer", fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+              </div>
+            ))}
+            {canAdd && (
+              <div onClick={() => inputRef.current.click()} style={{ borderRadius: 12, border: `2px dashed ${C.parchment}`, aspectRatio: "1", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", cursor: "pointer", background: C.cream, gap: 6 }}>
+                <span style={{ fontSize: 22, color: C.pebble }}>+</span>
+                <span style={{ fontFamily: F.body, fontSize: 10, color: C.stone, textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 600 }}>Photo</span>
+              </div>
+            )}
+          </div>
+          {!isPro && photos.length >= maxFree && <p style={{ fontFamily: F.body, fontSize: 12, color: C.sage, marginBottom: 6, fontWeight: 500 }}>✦ Upgrade for unlimited photos</p>}
+          <input ref={inputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleFile} />
+        </div>
+      );
+    }
+
+    // ── Upgrade Modal ─────────────────────────────────────────────────
+    function UpgradeModal({ onClose, onUpgrade }) {
+      const [billing, setBilling] = useState("yearly");
+      const features = [
+        { icon: "🐄", text: "Unlimited animals & livestock" },
+        { icon: "🔔", text: "Smart reminders for every animal task" },
+        { icon: "📅", text: "Google Calendar sync for all reminders" },
+        { icon: "📷", text: "Unlimited photo gallery per animal" },
+        { icon: "🤖", text: "AI Homestead Assistant — 24/7 advice" },
+        { icon: "🔬", text: "AI photo health checks" },
+        { icon: "🌱", text: "Breeding, calving & pregnancy tracker" },
+        { icon: "💉", text: "Full medication & vaccine history" },
+      ];
+      const price = billing === "monthly" ? `$${STRIPE_CONFIG.monthlyAmount}/month` : `$${STRIPE_CONFIG.yearlyAmount}/year`;
+      const saving = billing === "yearly" ? `Save $${(STRIPE_CONFIG.monthlyAmount * 12) - STRIPE_CONFIG.yearlyAmount} vs monthly` : "";
+
+      return (
+        <Modal onClose={onClose} wide>
+          {/* Hero */}
+          <div style={{ textAlign: "center", marginBottom: 26, marginTop: -8 }}>
+            <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 84, height: 84, borderRadius: "50%", background: `linear-gradient(135deg, ${C.cream}, ${C.parchment})`, border: `2px solid ${C.parchment}`, boxShadow: `0 0 0 6px ${C.offWhite}, 0 0 0 8px ${C.parchment}55`, marginBottom: 16 }}>
+              <HighlandCowLogo size={54} color={C.brown} />
+            </div>
+            <h2 style={{ fontFamily: F.display, color: C.dark, margin: "0 0 4px", fontSize: 28, fontWeight: 800, letterSpacing: "-0.02em" }}>
+              PasturePal <span style={{ color: C.sage }}>Pro</span>
+            </h2>
+            <p style={{ fontFamily: F.body, color: C.stone, margin: "0 0 4px", fontSize: 14 }}>Your complete homestead & small farm companion.</p>
+            <p style={{ fontFamily: F.display, color: C.terracotta, fontSize: 13, fontStyle: "italic" }}>Built for real farmers. Priced for small operations.</p>
+          </div>
+
+          {/* Billing toggle */}
+          <div style={{ display: "flex", background: C.cream, borderRadius: 12, padding: 4, marginBottom: 24, border: `1.5px solid ${C.parchment}`, gap: 4 }}>
+            {[["monthly", `$${STRIPE_CONFIG.monthlyAmount} / month`], ["yearly", `$${STRIPE_CONFIG.yearlyAmount} / year`]].map(([v, label]) => (
+              <button key={v} onClick={() => setBilling(v)} style={{ flex: 1, padding: "9px 8px", borderRadius: 9, border: "none", cursor: "pointer", fontFamily: F.body, fontSize: 12, fontWeight: billing === v ? 700 : 500, background: billing === v ? C.white : "transparent", color: billing === v ? C.dark : C.stone, boxShadow: billing === v ? "0 2px 6px rgba(42,31,14,0.1)" : "none", transition: "all 0.15s" }}>
+                {label}
+                {v === "yearly" && <span style={{ marginLeft: 6, background: C.terracotta + "22", color: C.terracotta, borderRadius: 100, padding: "1px 7px", fontSize: 10, fontWeight: 700 }}>BEST VALUE</span>}
+              </button>
+            ))}
+          </div>
+          {saving && <div style={{ textAlign: "center", fontFamily: F.body, fontSize: 12, color: C.sage, fontWeight: 600, marginTop: -16, marginBottom: 18 }}>✓ {saving}</div>}
+
+          {/* Features */}
+          <div style={{ display: "grid", gap: 10, marginBottom: 26 }}>
+            {features.map(({ icon, text }) => (
+              <div key={text} style={{ display: "flex", alignItems: "center", gap: 12, padding: "3px 0" }}>
+                <div style={{ width: 32, height: 32, borderRadius: 9, background: C.sagePale, border: `1.5px solid ${C.sageLight}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0 }}>{icon}</div>
+                <span style={{ fontFamily: F.body, fontSize: 13, color: C.brown, fontWeight: 500 }}>{text}</span>
+                <div style={{ marginLeft: "auto", color: C.sage, fontWeight: 700 }}>✓</div>
+              </div>
+            ))}
+          </div>
+
+          <Btn full variant="primary" style={{ fontSize: 14, padding: "14px 24px", borderRadius: 12 }}
+            onClick={() => { startStripeCheckout(billing === "monthly" ? STRIPE_CONFIG.monthlyPriceId : STRIPE_CONFIG.yearlyPriceId); onUpgrade(); onClose(); }}>
+            Start 14-Day Free Trial — {price} →
+          </Btn>
+          <p style={{ fontFamily: F.body, fontSize: 11, color: C.pebble, textAlign: "center", marginTop: 12 }}>Cancel anytime · No hidden fees · Powered by Stripe</p>
+        </Modal>
+      );
+    }
+
+    // ── Add Animal ────────────────────────────────────────────────────
+    const EMOJIS = { Cattle:"🐄", Goat:"🐐", Pig:"🐷", Sheep:"🐑", Chicken:"🐔", Horse:"🐴", Rabbit:"🐰", Duck:"🦆", Other:"🐾" };
+    const PALETTE = [C.terracotta, C.sage, C.dustyRose, C.sky, C.wheat, C.lavender, C.meadow];
+
+    function AddAnimalModal({ onSave, onClose, canAdd }) {
+      const [f, setF] = useState({ name: "", species: "Cattle", breed: "", sex: "Female", dob: "", tag: "", notes: "" });
+      const s = (k, v) => setF(p => ({ ...p, [k]: v }));
+      return (
+        <Modal title="Add to Your Herd" onClose={onClose}>
+          {!canAdd && <div style={{ background: C.sagePale, border: `1.5px solid ${C.sageLight}`, borderRadius: 12, padding: 14, marginBottom: 20, fontFamily: F.body, fontSize: 13, color: C.sageDark, lineHeight: 1.6 }}>You've reached the 10-animal free limit. <strong>Upgrade to Pro</strong> for unlimited animals.</div>}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+            <div style={{ gridColumn: "1/-1" }}><Input label="Name *" value={f.name} onChange={v => s("name", v)} placeholder="e.g. Biscuit" /></div>
+            <Select label="Species" value={f.species} onChange={v => s("species", v)} options={Object.keys(EMOJIS)} />
+            <Input label="Breed" value={f.breed} onChange={v => s("breed", v)} placeholder="e.g. Hereford" />
+            <Select label="Sex" value={f.sex} onChange={v => s("sex", v)} options={["Female", "Male", "Wether", "Steer", "Castrated"]} />
+            <Input label="Tag / ID" value={f.tag} onChange={v => s("tag", v)} placeholder="e.g. HF-001" />
+            <div style={{ gridColumn: "1/-1" }}><Input label="Date of Birth" value={f.dob} onChange={v => s("dob", v)} type="date" /></div>
+            <div style={{ gridColumn: "1/-1" }}><Input label="Notes" value={f.notes} onChange={v => s("notes", v)} placeholder="Personality, quirks, health notes…" rows={3} /></div>
+          </div>
+          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+            <Btn variant="ghost" small onClick={onClose}>Cancel</Btn>
+            <Btn variant="primary" small disabled={!f.name || !canAdd} onClick={() => { if (!f.name || !canAdd) return; onSave({ ...f, id: uid(), emoji: EMOJIS[f.species] || "🐾", color: PALETTE[Math.floor(Math.random() * PALETTE.length)], meds: [], calving: [], reminders: [], photos: [], weight: [] }); }}>Add to Herd</Btn>
+          </div>
+        </Modal>
+      );
+    }
+
+    function QuickAddModal({ title, fields, onSave, onClose }) {
+      const [f, setF] = useState(() => Object.fromEntries(fields.map(x => [x.key, ""])));
+      return (
+        <Modal title={title} onClose={onClose}>
+          {fields.map(field => field.type === "select"
+            ? <Select key={field.key} label={field.label} value={f[field.key]} onChange={v => setF(p => ({ ...p, [field.key]: v }))} options={field.options} />
+            : <Input key={field.key} label={field.label} value={f[field.key]} onChange={v => setF(p => ({ ...p, [field.key]: v }))} type={field.type || "text"} rows={field.rows} />
+          )}
+          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+            <Btn variant="ghost" small onClick={onClose}>Cancel</Btn>
+            <Btn variant="primary" small onClick={() => onSave({ ...f, id: uid() })}>Save</Btn>
+          </div>
+        </Modal>
+      );
+    }
+
+    // ── Animal Avatar ─────────────────────────────────────────────────
+    function AnimalAvatar({ animal, size = 52, radius = 12 }) {
+      return (
+        <div style={{ width: size, height: size, borderRadius: radius, background: `linear-gradient(135deg, ${animal.color}33, ${animal.color}11)`, border: `2px solid ${animal.color}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.5, flexShrink: 0, overflow: "hidden" }}>
+          {animal.photos?.[0] ? <img src={animal.photos[0].src} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt={animal.name} /> : animal.emoji}
+        </div>
+      );
+    }
+
+    // ── Reminder Card ─────────────────────────────────────────────────
+    function ReminderCard({ reminder, animalName, onDelete }) {
+      const rt = getReminderType(reminder.type);
+      const d = daysUntil(reminder.due);
+      const overdue = d !== null && d < 0;
+      const urgent  = d !== null && d <= 3 && d >= 0;
+      const soon    = d !== null && d <= 7 && d >= 0;
+      const statusColor = overdue ? C.terracotta : urgent ? C.amber : soon ? C.wheat : C.sage;
+      const gcUrl = getGCalUrl(reminder.text, reminder.due, reminder.notes, animalName);
+
+      return (
+        <Card style={{ padding: "16px 18px" }}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
+            <div style={{ width: 44, height: 44, borderRadius: 12, background: rt.color + "18", border: `1.5px solid ${rt.color}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>
+              {rt.icon}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: F.body, fontWeight: 700, color: C.dark, fontSize: 15, marginBottom: 4 }}>{reminder.text}</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
+                {reminder.due && <Badge color={statusColor} small>{overdue ? "Overdue" : d === 0 ? "Today" : d === 1 ? "Tomorrow" : `In ${d} days`} · {fmt(reminder.due)}</Badge>}
+                {reminder.recurrence && reminder.recurrence !== "One-time" && <Badge outline small>↻ {reminder.recurrence}</Badge>}
+              </div>
+              {reminder.notes && <div style={{ fontFamily: F.body, fontSize: 12, color: C.stone, marginTop: 6 }}>{reminder.notes}</div>}
+              {/* Actions */}
+              <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+                {gcUrl && (
+                  <a href={gcUrl} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 12px", background: "#4285F415", border: "1px solid #4285F444", borderRadius: 8, fontFamily: F.body, fontSize: 11, fontWeight: 600, color: "#4285F4", textDecoration: "none", letterSpacing: "0.02em" }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="#4285F4"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/></svg>
+                    Add to Google Calendar
+                  </a>
+                )}
+              </div>
+            </div>
+            {onDelete && <button onClick={onDelete} style={{ background: "none", border: "none", cursor: "pointer", color: C.pebble, fontSize: 16, paddingTop: 2 }}>✕</button>}
+          </div>
+        </Card>
+      );
+    }
+
+    // ── Edit Animal Modal ─────────────────────────────────────────────
+    function EditAnimalModal({ animal, onSave, onClose }) {
+      const [f, setF] = useState({ name: animal.name, breed: animal.breed || "", sex: animal.sex || "Female", tag: animal.tag || "", dob: animal.dob || "", notes: animal.notes || "" });
+      const s = (k, v) => setF(p => ({ ...p, [k]: v }));
+      return (
+        <Modal title={"Edit " + animal.name} onClose={onClose}>
+          <Input label="Name *" value={f.name} onChange={v => s("name", v)} placeholder="Animal name" />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+            <Input label="Breed" value={f.breed} onChange={v => s("breed", v)} placeholder="e.g. Hereford" />
+            <Select label="Sex" value={f.sex} onChange={v => s("sex", v)} options={["Female", "Male", "Wether", "Steer", "Castrated"]} />
+            <Input label="Tag / ID" value={f.tag} onChange={v => s("tag", v)} placeholder="e.g. HF-001" />
+            <Input label="Date of Birth" value={f.dob} onChange={v => s("dob", v)} type="date" />
+          </div>
+          <Input label="Notes" value={f.notes} onChange={v => s("notes", v)} placeholder="Personality, health notes…" rows={3} />
+          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+            <Btn variant="ghost" small onClick={onClose}>Cancel</Btn>
+            <Btn variant="primary" small disabled={!f.name} onClick={() => { if (f.name) onSave(f); }}>Save Changes</Btn>
+          </div>
+        </Modal>
+      );
+    }
+
+    // ── Delete Confirm Modal ──────────────────────────────────────────
+    function DeleteConfirmModal({ animal, onConfirm, onClose }) {
+      return (
+        <Modal title="Remove Animal?" onClose={onClose}>
+          <div style={{ textAlign: "center", padding: "8px 0 20px" }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>{animal.emoji}</div>
+            <p style={{ fontFamily: F.body, fontSize: 15, color: C.dark, marginBottom: 6, fontWeight: 600 }}>Remove {animal.name} from your herd?</p>
+            <p style={{ fontFamily: F.body, fontSize: 13, color: C.stone, lineHeight: 1.6, marginBottom: 24 }}>This will permanently delete all of {animal.name}'s records, medications, reminders, and photos. This cannot be undone.</p>
+            <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+              <Btn variant="ghost" onClick={onClose}>Keep Animal</Btn>
+              <Btn variant="primary" style={{ background: C.terracotta, boxShadow: "0 2px 8px rgba(184,92,52,0.3)" }} onClick={onConfirm}>Yes, Remove</Btn>
+            </div>
+          </div>
+        </Modal>
+      );
+    }
+
+    // ── Animal Detail ─────────────────────────────────────────────────
+    function AnimalDetail({ animal, onUpdate, onBack, onDelete, isPro, onUpgrade }) {
+      const [tab, setTab]   = useState("overview");
+      const [modal, setModal] = useState(null);
+      const upd = patch => onUpdate({ ...animal, ...patch });
+      const age = animal.dob ? Math.floor((Date.now() - new Date(animal.dob)) / 31557600000) : null;
+      const latestWeight = animal.weight?.slice(-1)[0];
+      const TABS = [{ key: "overview", label: "Overview" }, { key: "photos", label: "Photos" }, { key: "health", label: "Health" }, { key: "calving", label: "Births" }, { key: "reminders", label: "Reminders" }, { key: "ai", label: "🤖 Ask AI" }];
+
+      return (
+        <div className="pp-animate">
+          {/* Banner */}
+          <div style={{ background: `linear-gradient(135deg, ${animal.color}22, ${animal.color}08)`, border: `1.5px solid ${animal.color}33`, borderRadius: 20, padding: "20px 20px 0", overflow: "hidden", position: "relative" }}>
+            <div style={{ position: "absolute", top: -30, right: -30, width: 120, height: 120, borderRadius: "50%", background: animal.color + "14", pointerEvents: "none" }} />
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 14, marginBottom: 16 }}>
+              <button onClick={onBack} style={{ background: C.white + "CC", backdropFilter: "blur(8px)", border: `1px solid ${C.parchment}`, borderRadius: 10, padding: "7px 13px", cursor: "pointer", fontSize: 16, color: C.stone, flexShrink: 0, marginTop: 2 }}>←</button>
+              <AnimalAvatar animal={animal} size={64} radius={14} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <h2 style={{ margin: "0 0 6px", fontFamily: F.display, fontSize: 26, color: C.dark, fontWeight: 800, letterSpacing: "-0.02em" }}>{animal.name}</h2>
+                <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                  <Badge color={animal.color}>{animal.breed} {animal.species}</Badge>
+                  <Badge color={C.stone} outline>{animal.sex}</Badge>
+                  {animal.tag && <Badge outline>#{animal.tag}</Badge>}
+                </div>
+              </div>
+              {/* Edit / Delete actions */}
+              <div style={{ display: "flex", gap: 6, flexShrink: 0, marginTop: 2 }}>
+                <button onClick={() => setModal("edit")} title="Edit animal" style={{ background: C.white + "CC", backdropFilter: "blur(8px)", border: `1px solid ${C.parchment}`, borderRadius: 10, width: 34, height: 34, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>✏️</button>
+                <button onClick={() => setModal("delete")} title="Remove animal" style={{ background: C.terracotta + "15", border: `1px solid ${C.terracotta}44`, borderRadius: 10, width: 34, height: 34, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>🗑️</button>
+              </div>
+            </div>
+            <div style={{ display: "flex", borderTop: `1px solid ${animal.color}22`, marginTop: 4 }}>
+              {[["Age", age !== null ? `${age} yr${age !== 1 ? "s" : ""}` : "—"], ["Weight", latestWeight ? `${latestWeight.lbs} lbs` : "—"], ["Tag", animal.tag || "—"]].map(([label, val], i) => (
+                <div key={label} style={{ flex: 1, padding: "12px 0", textAlign: i === 1 ? "center" : i === 2 ? "right" : "left" }}>
+                  <div style={{ fontFamily: F.display, fontSize: 16, fontWeight: 700, color: C.dark }}>{val}</div>
+                  <div style={{ fontFamily: F.body, fontSize: 10, color: C.stone, textTransform: "uppercase", letterSpacing: "0.1em", marginTop: 2, fontWeight: 600 }}>{label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Tabs */}
+          <div style={{ display: "flex", gap: 2, overflowX: "auto", padding: "14px 0 0", marginBottom: 20 }}>
+            {TABS.map(t => (
+              <button key={t.key} onClick={() => setTab(t.key)} className="pp-tab" style={{ padding: "8px 14px", border: "none", borderRadius: 8, cursor: "pointer", fontFamily: F.body, fontSize: 12, fontWeight: tab === t.key ? 700 : 500, background: tab === t.key ? C.brown : "transparent", color: tab === t.key ? C.cream : C.stone, whiteSpace: "nowrap" }}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {tab === "overview" && (
+            <div style={{ display: "grid", gap: 14 }} className="pp-animate">
+              {animal.notes && <Card style={{ borderLeft: `3px solid ${animal.color}`, paddingLeft: 18 }}><div style={{ fontFamily: F.body, fontSize: 10, color: animal.color, textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700, marginBottom: 8 }}>Notes</div><p style={{ margin: 0, fontFamily: F.body, fontSize: 14, color: C.brown, lineHeight: 1.75 }}>{animal.notes}</p></Card>}
+              <Card>
+                <div style={{ fontFamily: F.body, fontSize: 10, color: C.sage, textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700, marginBottom: 16 }}>Animal Info</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                  {[["Date of Birth", fmt(animal.dob)], ["Species", `${animal.emoji} ${animal.species}`], ["Breed", animal.breed || "—"], ["Latest Weight", latestWeight ? `${latestWeight.lbs} lbs` : "—"]].map(([k, v]) => (
+                    <div key={k}><div style={{ fontFamily: F.body, fontSize: 10, color: C.pebble, textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 600, marginBottom: 4 }}>{k}</div><div style={{ fontFamily: F.body, fontSize: 15, color: C.dark, fontWeight: 600 }}>{v}</div></div>
+                  ))}
+                </div>
+              </Card>
+              {animal.weight?.length > 0 && (
+                <Card><WeightChart weight={animal.weight} /></Card>
+              )}
+
+              {!isPro && (
+                <div onClick={onUpgrade} className="pp-card-hover" style={{ cursor: "pointer", background: `linear-gradient(135deg, ${C.cream}, ${C.parchment}55)`, border: `1.5px solid ${C.parchment}`, borderRadius: 16, padding: 24, textAlign: "center" }}>
+                  <div style={{ display: "flex", justifyContent: "center", marginBottom: 14 }}><HighlandCowLogo size={44} color={C.midBrown} /></div>
+                  <div style={{ fontFamily: F.display, fontSize: 20, color: C.dark, marginBottom: 6, fontWeight: 700 }}>Unlock Pro Features</div>
+                  <div style={{ fontFamily: F.body, fontSize: 13, color: C.stone, marginBottom: 18, lineHeight: 1.65, maxWidth: 260, margin: "0 auto 18px" }}>AI homestead assistant, unlimited photos, breeding tracker & more — just $6/mo</div>
+                  <Btn variant="primary" small>Start Free Trial</Btn>
+                </div>
+              )}
+            </div>
+          )}
+
+          {tab === "photos" && (
+            <div className="pp-animate">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+                <h4 style={{ margin: 0, fontFamily: F.display, color: C.dark, fontSize: 20, fontWeight: 700 }}>Photo Gallery</h4>
+                {!isPro && <Badge color={C.stone} small outline>{animal.photos?.length || 0} / 2 free</Badge>}
+              </div>
+              <PhotoUpload photos={animal.photos || []} onAdd={p => upd({ photos: [...(animal.photos || []), p] })} onRemove={id => upd({ photos: (animal.photos || []).filter(p => p.id !== id) })} isPro={isPro} />
+              {(animal.photos || []).length === 0 && <div style={{ textAlign: "center", padding: "32px 0 16px" }}><div style={{ fontSize: 40, marginBottom: 12, opacity: 0.3 }}>📷</div><div style={{ fontFamily: F.body, fontSize: 14, color: C.stone }}>No photos yet</div></div>}
+          <BCSCheck animal={animal} isPro={isPro} onUpgrade={onUpgrade} />
+            </div>
+          )}
+
+          {tab === "health" && (
+            <div style={{ display: "grid", gap: 12 }} className="pp-animate">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <h4 style={{ margin: 0, fontFamily: F.display, color: C.dark, fontSize: 20, fontWeight: 700 }}>Medications & Vaccines</h4>
+                <Btn small variant="outline" onClick={() => setModal("med")} icon="＋">Add</Btn>
+              </div>
+              {(animal.meds || []).length === 0 && <div style={{ textAlign: "center", padding: "40px 0" }}><div style={{ fontSize: 36, opacity: 0.3, marginBottom: 12 }}>💉</div><div style={{ fontFamily: F.body, fontSize: 14, color: C.stone }}>No medications recorded</div></div>}
+              {(animal.meds || []).map(m => {
+                const d = daysUntil(m.due); const urgent = d !== null && d <= 14 && d >= 0; const overdue = d !== null && d < 0;
+                return (
+                  <Card key={m.id} style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
+                    <div style={{ width: 42, height: 42, borderRadius: 12, background: urgent || overdue ? C.terracotta + "15" : C.sagePale, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>💉</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontFamily: F.body, fontWeight: 700, color: C.dark, fontSize: 15 }}>{m.name}</div>
+                      <div style={{ fontFamily: F.mono, fontSize: 11, color: C.pebble, marginTop: 3 }}>Given: {fmt(m.date)}</div>
+                      {m.due && <div style={{ marginTop: 4 }}><Badge color={overdue ? C.terracotta : urgent ? C.wheat : C.sage} small>{overdue ? "Overdue" : urgent ? `Due in ${d}d` : `Next: ${fmt(m.due)}`}</Badge></div>}
+                      {m.notes && <div style={{ fontFamily: F.body, fontSize: 13, color: C.stone, marginTop: 6 }}>{m.notes}</div>}
+                    </div>
+                    <button onClick={() => upd({ meds: (animal.meds || []).filter(x => x.id !== m.id) })} style={{ background: "none", border: "none", cursor: "pointer", color: C.pebble, fontSize: 16 }}>✕</button>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+
+          {tab === "calving" && (
+            <div style={{ display: "grid", gap: 12 }} className="pp-animate">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <h4 style={{ margin: 0, fontFamily: F.display, color: C.dark, fontSize: 20, fontWeight: 700 }}>Birth Records</h4>
+                <Btn small variant="outline" onClick={() => setModal("calving")} icon="＋">Add</Btn>
+              </div>
+              {(animal.calving || []).length === 0 && <div style={{ textAlign: "center", padding: "40px 0" }}><div style={{ fontSize: 36, opacity: 0.3, marginBottom: 12 }}>🌱</div><div style={{ fontFamily: F.body, fontSize: 14, color: C.stone }}>No birth records</div></div>}
+              {(animal.calving || []).map(c => (
+                <Card key={c.id} style={{ borderLeft: `3px solid ${C.sage}`, paddingLeft: 18 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <div><div style={{ fontFamily: F.body, fontWeight: 700, color: C.dark, fontSize: 15 }}>{c.calfName || "Unnamed"}</div><div style={{ fontFamily: F.mono, fontSize: 11, color: C.pebble, marginTop: 3 }}>{fmt(c.date)}</div>{c.notes && <div style={{ fontFamily: F.body, fontSize: 13, color: C.stone, marginTop: 6 }}>{c.notes}</div>}</div>
+                    <Badge color={C.sage} small>{c.calfSex}</Badge>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          {tab === "reminders" && (
+            <div style={{ display: "grid", gap: 12 }} className="pp-animate">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <h4 style={{ margin: 0, fontFamily: F.display, color: C.dark, fontSize: 20, fontWeight: 700 }}>Reminders</h4>
+                <Btn small variant="primary" onClick={() => setModal("reminder")} icon="＋">Add Reminder</Btn>
+              </div>
+
+              {/* Quick type shortcuts */}
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {REMINDER_TYPES.filter(t => t.key !== "custom").map(t => (
+                  <button key={t.key} onClick={() => setModal("reminder-" + t.key)} style={{ padding: "5px 12px", borderRadius: 100, border: `1.5px solid ${t.color}44`, background: t.color + "12", cursor: "pointer", fontFamily: F.body, fontSize: 11, fontWeight: 600, color: t.color, display: "flex", alignItems: "center", gap: 5 }}>
+                    {t.icon} {t.label}
+                  </button>
+                ))}
+              </div>
+
+              {(animal.reminders || []).length === 0 && <div style={{ textAlign: "center", padding: "40px 0" }}><div style={{ fontSize: 36, opacity: 0.3, marginBottom: 12 }}>🔔</div><div style={{ fontFamily: F.body, fontSize: 14, color: C.stone }}>No reminders set</div><div style={{ fontFamily: F.body, fontSize: 12, color: C.pebble, marginTop: 4 }}>Add a reminder above to stay on schedule</div></div>}
+              {(animal.reminders || []).map(r => (
+                <ReminderCard key={r.id} reminder={r} animalName={animal.name} onDelete={() => upd({ reminders: (animal.reminders || []).filter(x => x.id !== r.id) })} />
+              ))}
+            </div>
+          )}
+
+          {tab === "ai" && (
+            <div className="pp-animate">
+              <AnimalAIChat animal={animal} isPro={isPro} onUpgrade={onUpgrade} />
+            </div>
+          )}
+
+          {modal === "med"      && <QuickAddModal title="Add Medication" onClose={() => setModal(null)} fields={[{ key: "name", label: "Medication Name" }, { key: "date", label: "Date Given", type: "date" }, { key: "due", label: "Next Due Date", type: "date" }, { key: "notes", label: "Notes", rows: 2 }]} onSave={d => { upd({ meds: [...(animal.meds || []), d] }); setModal(null); }} />}
+          {modal === "calving"  && <QuickAddModal title="Add Birth Record" onClose={() => setModal(null)} fields={[{ key: "date", label: "Birth Date", type: "date" }, { key: "calfName", label: "Name" }, { key: "calfSex", label: "Sex", type: "select", options: ["Female", "Male"] }, { key: "notes", label: "Notes", rows: 2 }]} onSave={d => { upd({ calving: [...(animal.calving || []), d] }); setModal(null); }} />}
+          {modal === "edit"   && <EditAnimalModal animal={animal} onClose={() => setModal(null)} onSave={f => { upd(f); setModal(null); }} />}
+          {modal === "delete" && <DeleteConfirmModal animal={animal} onClose={() => setModal(null)} onConfirm={() => { setModal(null); onDelete(animal.id); }} />}
+
+          {/* Reminder modals — generic or typed */}
+          {(modal === "reminder" || (modal && modal.startsWith("reminder-"))) && (
+            <SmartReminderModal
+              animals={[animal]}
+              preType={modal === "reminder" ? "custom" : modal.replace("reminder-", "")}
+              preAnimalId={animal.id}
+              onSave={(animalId, r) => { upd({ reminders: [...(animal.reminders || []), r] }); }}
+              onClose={() => setModal(null)}
+            />
+          )}
+        </div>
+      );
+    }
+
+    // ── AI Chat ───────────────────────────────────────────────────────
+    const QUICK_PROMPTS = ["Is this calf healthy?", "Deworming schedule?", "Signs of milk fever?", "What to plant this season?", "Hoof care tips?"];
+
+    function AIChat({ animals, isPro, onUpgrade }) {
+      const [msgs, setMsgs] = useState([{ role: "assistant", content: "Howdy from PasturePal! 🐄\n\nI'm your AI homestead assistant — ask me anything about your animals, health, calving, planting, pasture management, and more.\n\n⚠️ Note: AI chat requires a backend API key to be configured." }]);
+      const [input, setInput] = useState("");
+      const [loading, setLoading] = useState(false);
+      const bottomRef = useRef();
+      useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs]);
+
+      const send = async () => {
+        if (!input.trim() || loading) return;
+        const txt = input.trim();
+        const newMsgs = [...msgs, { role: "user", content: txt }];
+        setMsgs(newMsgs); setInput(""); setLoading(true);
+        try {
+          const reply = await askAI(newMsgs.map(m => ({ role: m.role, content: m.content })), animals);
+          setMsgs(p => [...p, { role: "assistant", content: reply }]);
+        } catch {
+          setMsgs(p => [...p, { role: "assistant", content: "⚠️ AI requires a backend proxy with your Anthropic API key. The browser can't call the API directly for security reasons." }]);
+        }
+        setLoading(false);
+      };
+
+      if (!isPro) return (
+        <div style={{ textAlign: "center", padding: "52px 20px" }} className="pp-animate">
+          <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 92, height: 92, borderRadius: "50%", background: `linear-gradient(135deg, ${C.cream}, ${C.parchment})`, border: `2px solid ${C.parchment}`, boxShadow: `0 0 0 6px ${C.offWhite}, 0 0 0 8px ${C.parchment}55`, marginBottom: 22 }}><HighlandCowLogo size={60} color={C.midBrown} /></div>
+          <h3 style={{ fontFamily: F.display, color: C.dark, margin: "0 0 10px", fontSize: 26, fontWeight: 800 }}>AI Homestead Assistant</h3>
+          <p style={{ fontFamily: F.body, color: C.stone, lineHeight: 1.7, fontSize: 14, maxWidth: 300, margin: "0 auto 6px" }}>Ask anything — animal health, calving, pasture management, seasonal planting, feed, and more.</p>
+          <p style={{ fontFamily: F.body, fontSize: 11, color: C.pebble, margin: "0 auto 28px", letterSpacing: "0.06em", textTransform: "uppercase", fontWeight: 600 }}>Pro feature · From $6/month</p>
+          <Btn variant="primary" onClick={onUpgrade} style={{ padding: "12px 28px", fontSize: 14 }}>Unlock AI Assistant</Btn>
+        </div>
+      );
+
+      return (
+        <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 240px)", minHeight: 380 }}>
+          <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 14, paddingBottom: 8 }}>
+            {msgs.map((m, i) => (
+              <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: m.role === "user" ? "flex-end" : "flex-start", gap: 4 }}>
+                {m.role === "assistant" && <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2, paddingLeft: 2 }}><div style={{ width: 20, height: 20, borderRadius: "50%", background: C.sage + "22", border: `1px solid ${C.sage}44`, display: "flex", alignItems: "center", justifyContent: "center" }}><HighlandCowLogo size={12} color={C.sageDark} /></div><span style={{ fontFamily: F.body, fontSize: 10, color: C.stone, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em" }}>Homestead AI</span></div>}
+                <div style={{ maxWidth: "80%", padding: "12px 16px", borderRadius: m.role === "user" ? "18px 18px 4px 18px" : "4px 18px 18px 18px", background: m.role === "user" ? C.brown : C.white, color: m.role === "user" ? C.cream : C.dark, fontFamily: F.body, fontSize: 14, lineHeight: 1.7, border: m.role === "user" ? "none" : `1.5px solid ${C.parchment}`, boxShadow: m.role === "user" ? "0 2px 8px rgba(61,43,16,0.2)" : "0 1px 4px rgba(42,31,14,0.05)", whiteSpace: "pre-wrap" }}>{m.content}</div>
+              </div>
+            ))}
+            {loading && <div style={{ display: "flex", alignItems: "flex-start", gap: 6 }}><div style={{ width: 20, height: 20, borderRadius: "50%", background: C.sage + "22", border: `1px solid ${C.sage}44`, display: "flex", alignItems: "center", justifyContent: "center", marginTop: 4 }}><HighlandCowLogo size={12} color={C.sageDark} /></div><div style={{ padding: "14px 18px", borderRadius: "4px 18px 18px 18px", background: C.white, border: `1.5px solid ${C.parchment}`, display: "flex", gap: 5, alignItems: "center" }}>{[1,2,3].map(n => <div key={n} className={`pp-dot-${n}`} style={{ width: 7, height: 7, borderRadius: "50%", background: C.sage }} />)}</div></div>}
+            <div ref={bottomRef} />
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+            <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && !e.shiftKey && send()} placeholder="Ask your homestead assistant…" style={{ flex: 1, padding: "11px 15px", borderRadius: 10, border: `1.5px solid ${C.parchment}`, fontFamily: F.body, fontSize: 14, background: C.white, color: C.dark, outline: "none" }} />
+            <Btn onClick={send} variant="primary" style={{ borderRadius: 10, padding: "11px 20px" }}>Send</Btn>
+          </div>
+          <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {QUICK_PROMPTS.map(q => <button key={q} onClick={() => setInput(q)} style={{ background: C.white, border: `1.5px solid ${C.parchment}`, borderRadius: 100, padding: "5px 13px", fontFamily: F.body, fontSize: 11, color: C.stone, cursor: "pointer", fontWeight: 500 }}>{q}</button>)}
+          </div>
+        </div>
+      );
+    }
+
+    // ── Dashboard ─────────────────────────────────────────────────────
+    // ── Botanical SVG ─────────────────────────────────────────────────
+    function LeafCluster({ size = 90, color = C.sage, style = {} }) {
+      return (
+        <svg width={size} height={size} viewBox="0 0 100 110" fill="none" style={style}>
+          {/* Main stem */}
+          <path d="M50 105 Q47 78 38 58 Q32 44 28 32" stroke={color} strokeWidth="1.8" fill="none" strokeLinecap="round" opacity="0.6"/>
+          <path d="M50 105 Q53 78 60 62 Q66 48 70 36" stroke={color} strokeWidth="1.4" fill="none" strokeLinecap="round" opacity="0.4"/>
+          {/* Big left leaf */}
+          <path d="M28 32 Q8 22 10 6 Q28 14 28 32Z" fill={color} opacity="0.85"/>
+          <path d="M28 32 Q18 18 10 6" stroke={color} strokeWidth="0.8" fill="none" strokeLinecap="round" opacity="0.5"/>
+          {/* Right leaf */}
+          <path d="M28 32 Q46 18 50 4 Q56 22 28 32Z" fill={color} opacity="0.65"/>
+          {/* Mid-left leaf */}
+          <path d="M38 58 Q18 52 16 36 Q36 42 38 58Z" fill={color} opacity="0.75"/>
+          {/* Mid-right leaf */}
+          <path d="M60 62 Q78 52 80 36 Q64 46 60 62Z" fill={color} opacity="0.55"/>
+          {/* Small top sprig */}
+          <path d="M70 36 Q82 22 84 10 Q72 24 70 36Z" fill={color} opacity="0.45"/>
+          {/* Bottom left leaf */}
+          <path d="M44 80 Q24 76 22 60 Q42 66 44 80Z" fill={color} opacity="0.5"/>
+          {/* Bottom right leaf */}
+          <path d="M56 82 Q76 76 78 60 Q60 68 56 82Z" fill={color} opacity="0.4"/>
+          {/* Tiny berries */}
+          <circle cx="12" cy="6" r="2.5" fill={color} opacity="0.7"/>
+          <circle cx="50" cy="4" r="2" fill={color} opacity="0.6"/>
+          <circle cx="84" cy="10" r="2" fill={color} opacity="0.5"/>
+        </svg>
+      );
+    }
+
+    function SmallSprig({ color = C.sage, size = 40 }) {
+      return (
+        <svg width={size} height={size} viewBox="0 0 40 50" fill="none">
+          <path d="M20 48 Q19 34 15 22" stroke={color} strokeWidth="1.4" fill="none" strokeLinecap="round" opacity="0.5"/>
+          <path d="M15 22 Q5 16 6 6 Q16 12 15 22Z" fill={color} opacity="0.7"/>
+          <path d="M15 22 Q22 14 24 5 Q26 16 15 22Z" fill={color} opacity="0.55"/>
+          <path d="M18 35 Q8 31 8 22 Q18 27 18 35Z" fill={color} opacity="0.6"/>
+          <path d="M22 36 Q32 30 32 21 Q22 27 22 36Z" fill={color} opacity="0.45"/>
+        </svg>
+      );
+    }
+
+    // ── Journal Date Header ───────────────────────────────────────────
+    function JournalHeader({ isPro, animals, FREE_LIMIT, onAdd, onUpgrade }) {
+      const season = getSeason();
+      const now = new Date();
+      const dateStr = now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+      const greeting = greet();
+
+      return (
+        <div style={{ position: "relative", background: `linear-gradient(150deg, ${C.offWhite} 0%, ${C.cream}CC 100%)`, border: `1.5px solid ${C.parchment}`, borderRadius: 20, padding: "22px 22px 18px", marginBottom: 24, overflow: "hidden", boxShadow: "0 3px 16px rgba(42,31,14,0.08)" }}>
+          {/* Botanical corner decorations */}
+          <div style={{ position: "absolute", top: -8, right: -8, opacity: 0.18, pointerEvents: "none" }} className="pp-leaf">
+            <LeafCluster size={110} color={C.sage} />
+          </div>
+          <div style={{ position: "absolute", bottom: -14, left: -12, opacity: 0.12, pointerEvents: "none", transform: "scaleX(-1) rotate(20deg)" }}>
+            <LeafCluster size={75} color={C.meadow} />
+          </div>
+
+          {/* Date bar */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, position: "relative" }}>
+            <span style={{ fontSize: 15 }}>{season.emoji}</span>
+            <span style={{ fontFamily: F.mono, fontSize: 11, color: season.accent, letterSpacing: "0.06em", fontWeight: 600 }}>{dateStr}</span>
+            <div style={{ flex: 1, height: 1, background: `linear-gradient(to right, ${C.parchment}, transparent)` }} />
+          </div>
+
+          {/* Greeting + CTA */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", position: "relative" }}>
+            <div>
+              <h2 style={{ fontFamily: F.display, color: C.dark, fontSize: 32, fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 6, lineHeight: 1.1 }}>{greeting}.</h2>
+              <p style={{ fontFamily: F.body, fontSize: 11, color: C.stone, textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 600 }}>
+                {isPro ? "✦ Pro · Unlimited herd" : `${animals.length} of ${FREE_LIMIT} free animals`}
+              </p>
+            </div>
+            <Btn small variant="primary" style={{ borderRadius: 100, flexShrink: 0 }} icon="+" onClick={onAdd}>Add Animal</Btn>
+          </div>
+        </div>
+      );
+    }
+
+    // ── Decorative Divider (upgraded) ─────────────────────────────────
+    function FarmDivider({ label }) {
+      return (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "22px 0 18px" }}>
+          <div style={{ flex: 1, height: 1, background: `linear-gradient(to right, transparent, ${C.parchment})` }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 14px", background: C.cream, border: `1px solid ${C.parchment}`, borderRadius: 100, boxShadow: "inset 0 1px 3px rgba(42,31,14,0.06)" }}>
+            <SmallSprig color={C.sage} size={14} />
+            {label && <span style={{ fontFamily: F.body, fontSize: 10, color: C.stone, textTransform: "uppercase", letterSpacing: "0.16em", fontWeight: 700 }}>{label}</span>}
+            <SmallSprig color={C.sage} size={14} style={{ transform: "scaleX(-1)" }} />
+          </div>
+          <div style={{ flex: 1, height: 1, background: `linear-gradient(to left, transparent, ${C.parchment})` }} />
+        </div>
+      );
+    }
+
+    // ── Gestation Periods (days) ──────────────────────────────────────
+    const GESTATION = {
+      Cattle: 283, Goat: 150, Sheep: 147, Pig: 114,
+      Horse: 336, Rabbit: 31, Duck: 28, Chicken: 21, Other: 150,
+    };
+
+    // ── Herd Health Score ─────────────────────────────────────────────
+    function HerdHealthScore({ animals }) {
+      const total = animals.length;
+      if (total === 0) return null;
+
+      // Score based on overdue + urgent tasks
+      let deductions = 0;
+      animals.forEach(a => {
+        (a.meds || []).forEach(m => {
+          const d = daysUntil(m.due);
+          if (d !== null && d < 0)  deductions += 8;   // overdue
+          if (d !== null && d <= 7 && d >= 0) deductions += 2; // due soon
+        });
+        (a.reminders || []).forEach(r => {
+          const d = daysUntil(r.due);
+          if (d !== null && d < 0)  deductions += 6;
+          if (d !== null && d <= 7 && d >= 0) deductions += 1;
+        });
+      });
+
+      const score = Math.max(0, Math.min(100, 100 - deductions));
+      const grade = score >= 95 ? "A+" : score >= 90 ? "A" : score >= 80 ? "B" : score >= 70 ? "C" : score >= 60 ? "D" : "F";
+      const color = score >= 90 ? C.sage : score >= 75 ? C.wheat : score >= 60 ? C.amber : C.terracotta;
+      const label = score >= 95 ? "Excellent!" : score >= 85 ? "On Track" : score >= 70 ? "Needs Attention" : "Action Required";
+
+      // SVG arc
+      const r = 36, cx = 48, cy = 48, stroke = 7;
+      const circ = 2 * Math.PI * r;
+      const dash = (score / 100) * circ;
+
+      return (
+        <Card style={{ padding: "18px 20px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+            {/* Arc gauge */}
+            <div style={{ flexShrink: 0, position: "relative" }}>
+              <svg width="96" height="96" viewBox="0 0 96 96">
+                {/* Track */}
+                <circle cx={cx} cy={cy} r={r} fill="none" stroke={C.parchment} strokeWidth={stroke} />
+                {/* Progress */}
+                <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth={stroke}
+                  strokeDasharray={`${dash} ${circ}`}
+                  strokeLinecap="round"
+                  transform={`rotate(-90 ${cx} ${cy})`}
+                  style={{ transition: "stroke-dasharray 0.8s ease" }}
+                />
+                {/* Grade text */}
+                <text x={cx} y={cy - 4} textAnchor="middle" fontFamily="'Playfair Display',serif" fontSize="22" fontWeight="800" fill={color}>{grade}</text>
+                <text x={cx} y={cy + 14} textAnchor="middle" fontFamily="'Jost',sans-serif" fontSize="10" fontWeight="600" fill={C.stone}>{score}%</text>
+              </svg>
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontFamily: F.body, fontSize: 10, color: C.stone, textTransform: "uppercase", letterSpacing: "0.14em", fontWeight: 700, marginBottom: 6 }}>Herd Health Score</div>
+              <div style={{ fontFamily: F.display, fontSize: 20, fontWeight: 700, color: color, marginBottom: 4 }}>{label}</div>
+              <div style={{ fontFamily: F.body, fontSize: 12, color: C.stone, lineHeight: 1.55 }}>
+                {score === 100
+                  ? `All ${total} animal${total > 1 ? "s are" : " is"} on schedule. Great work! 🌿`
+                  : `${deductions > 0 ? `${Math.round(deductions / 2)} task${Math.round(deductions / 2) !== 1 ? "s" : ""} need attention across your herd.` : ""}`
+                }
+              </div>
+            </div>
+          </div>
+        </Card>
+      );
+    }
+
+    // ── Weight Chart ──────────────────────────────────────────────────
+    function WeightChart({ weight = [] }) {
+      if (weight.length < 2) {
+        return (
+          <div style={{ textAlign: "center", padding: "28px 0" }}>
+            <div style={{ fontSize: 32, marginBottom: 8, opacity: 0.3 }}>⚖️</div>
+            <div style={{ fontFamily: F.body, fontSize: 13, color: C.stone }}>Add at least 2 weight entries to see the chart</div>
+          </div>
+        );
+      }
+      const sorted = [...weight].sort((a, b) => new Date(a.date) - new Date(b.date));
+      const maxW = Math.max(...sorted.map(w => w.lbs));
+      const minW = Math.min(...sorted.map(w => w.lbs));
+      const range = maxW - minW || 1;
+      const W = 280, H = 100, pad = 16;
+      const pts = sorted.map((w, i) => {
+        const x = pad + (i / (sorted.length - 1)) * (W - pad * 2);
+        const y = H - pad - ((w.lbs - minW) / range) * (H - pad * 2);
+        return [x, y, w];
+      });
+      const pathD = pts.map(([x, y], i) => `${i === 0 ? "M" : "L"}${x},${y}`).join(" ");
+      const areaD = `${pathD} L${pts[pts.length-1][0]},${H-pad} L${pts[0][0]},${H-pad} Z`;
+      const trend = sorted[sorted.length-1].lbs - sorted[0].lbs;
+
+      return (
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <div style={{ fontFamily: F.body, fontSize: 10, color: C.sage, textTransform: "uppercase", letterSpacing: "0.12em", fontWeight: 700 }}>Weight History</div>
+            <div style={{ fontFamily: F.body, fontSize: 12, fontWeight: 600, color: trend >= 0 ? C.sage : C.terracotta }}>
+              {trend >= 0 ? "▲" : "▼"} {Math.abs(trend)} lbs since first record
+            </div>
+          </div>
+          <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ overflow: "visible" }}>
+            {/* Horizontal guide lines */}
+            {[0.25, 0.5, 0.75].map(t => (
+              <line key={t} x1={pad} x2={W-pad} y1={H - pad - t * (H - pad*2)} y2={H - pad - t * (H - pad*2)} stroke={C.parchment} strokeWidth="1" strokeDasharray="3,3" />
+            ))}
+            {/* Area fill */}
+            <path d={areaD} fill={C.sage + "18"} />
+            {/* Line */}
+            <path d={pathD} fill="none" stroke={C.sage} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+            {/* Data points */}
+            {pts.map(([x, y, w], i) => (
+              <g key={i}>
+                <circle cx={x} cy={y} r="5" fill={C.white} stroke={C.sage} strokeWidth="2" />
+                {i === pts.length - 1 && (
+                  <text x={x} y={y - 10} textAnchor="middle" fontFamily="'DM Mono',monospace" fontSize="10" fill={C.sageDark} fontWeight="600">{w.lbs} lbs</text>
+                )}
+              </g>
+            ))}
+          </svg>
+          {/* X-axis labels */}
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+            {sorted.map((w, i) => (
+              <div key={i} style={{ fontFamily: F.mono, fontSize: 9, color: C.pebble }}>{fmt(w.date).split(",")[0]}</div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // ── Gestation Calculator Modal ────────────────────────────────────
+    function GestationModal({ onClose, onAddReminder, animals }) {
+      const [animalId, setAnimalId] = useState(animals[0]?.id || "");
+      const [breedDate, setBreedDate] = useState("");
+      const [species, setSpecies] = useState("Cattle");
+      const animal = animals.find(a => a.id === animalId);
+
+      useEffect(() => {
+        if (animal) setSpecies(animal.species || "Cattle");
+      }, [animalId]);
+
+      const days = GESTATION[species] || 150;
+      const expectedDate = breedDate
+        ? new Date(new Date(breedDate + "T00:00:00").getTime() + days * 86400000).toISOString().split("T")[0]
+        : null;
+      const daysLeft = expectedDate ? daysUntil(expectedDate) : null;
+
+      return (
+        <Modal title="🐣 Gestation Calculator" onClose={onClose}>
+          <p style={{ fontFamily: F.body, fontSize: 13, color: C.stone, marginBottom: 20, lineHeight: 1.6 }}>
+            Enter a breeding date and species to calculate the expected birth date.
+          </p>
+          {animals.length > 0 && (
+            <div style={{ marginBottom: 14 }}>
+              <FieldLabel>Animal (optional)</FieldLabel>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {animals.map(a => (
+                  <button key={a.id} onClick={() => setAnimalId(a.id)} style={{ padding: "5px 12px", borderRadius: 100, border: `2px solid ${animalId === a.id ? a.color : C.parchment}`, background: animalId === a.id ? a.color + "15" : C.white, cursor: "pointer", fontFamily: F.body, fontSize: 12, fontWeight: 600, color: animalId === a.id ? a.color : C.stone }}>
+                    {a.emoji} {a.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+            <Input label="Breeding Date" value={breedDate} onChange={setBreedDate} type="date" />
+            <Select label="Species" value={species} onChange={setSpecies} options={Object.keys(GESTATION)} />
+          </div>
+
+          {/* Gestation reference */}
+          <div style={{ background: C.cream, border: `1px solid ${C.parchment}`, borderRadius: 10, padding: "10px 14px", marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontFamily: F.body, fontSize: 13, color: C.stone }}>{species} gestation period</span>
+            <span style={{ fontFamily: F.display, fontSize: 16, fontWeight: 700, color: C.dark }}>{days} days</span>
+          </div>
+
+          {/* Result */}
+          {expectedDate && (
+            <div style={{ background: `linear-gradient(135deg, ${C.dustyRose}18, ${C.offWhite})`, border: `1.5px solid ${C.dustyRose}44`, borderRadius: 14, padding: "20px", textAlign: "center", marginBottom: 20 }}>
+              <div style={{ fontSize: 36, marginBottom: 10 }}>🐣</div>
+              <div style={{ fontFamily: F.body, fontSize: 11, color: C.dustyRose, textTransform: "uppercase", letterSpacing: "0.12em", fontWeight: 700, marginBottom: 6 }}>Expected Birth Date</div>
+              <div style={{ fontFamily: F.display, fontSize: 26, fontWeight: 800, color: C.dark, marginBottom: 4 }}>{fmt(expectedDate)}</div>
+              <div style={{ fontFamily: F.body, fontSize: 13, color: C.stone }}>
+                {daysLeft !== null
+                  ? daysLeft < 0 ? `${Math.abs(daysLeft)} days overdue — check on this animal!`
+                  : daysLeft === 0 ? "Due today! 🌟"
+                  : `${daysLeft} days from today`
+                  : ""}
+              </div>
+              <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 16 }}>
+                {animalId && (
+                  <Btn small variant="primary" onClick={() => {
+                    onAddReminder(animalId, { id: uid(), type: "calving", text: `Expected ${species.toLowerCase()} birth`, due: expectedDate, recurrence: "One-time", notes: `Breeding date: ${fmt(breedDate)} · Gestation: ${days} days` });
+                    onClose();
+                  }}>Add to Reminders</Btn>
+                )}
+                {expectedDate && (
+                  <a href={getGCalUrl(`Expected ${species} Birth${animal ? " — " + animal.name : ""}`, expectedDate, `Breeding date: ${fmt(breedDate)}`, animal?.name || "")} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 16px", background: "#4285F415", border: "1px solid #4285F444", borderRadius: 10, fontFamily: F.body, fontSize: 12, fontWeight: 600, color: "#4285F4", textDecoration: "none" }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="#4285F4"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/></svg>
+                    Google Calendar
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
+          <Btn full variant="ghost" onClick={onClose}>Close</Btn>
+        </Modal>
+      );
+    }
+
+    // ── AI Utilities ──────────────────────────────────────────────────
+    const AI_ERROR_MSG = "⚠️ AI features need a backend API proxy — set up /api/chat with your Anthropic key to enable this. Everything else works perfectly!";
+    const AI_BACKEND_NOTE = "Backend API key needed";
+
+    async function callAI(system, userContent, maxTokens = 1000) {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: maxTokens, system, messages: [{ role: "user", content: userContent }] })
+      });
+      if (!res.ok) throw new Error("API error");
+      const data = await res.json();
+      if (data.error) throw new Error(data.error.message);
+      return data.content?.map(b => b.text || "").join("") || "";
+    }
+
+    async function callAIWithImage(system, text, base64) {
+      const content = [
+        { type: "image", source: { type: "base64", media_type: "image/jpeg", data: base64 } },
+        { type: "text", text }
+      ];
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 600, system, messages: [{ role: "user", content }] })
+      });
+      if (!res.ok) throw new Error("API error");
+      const data = await res.json();
+      return data.content?.map(b => b.text || "").join("") || "";
+    }
+
+    function ProGate({ title, icon, description, onUpgrade, onClose }) {
+      return (
+        <div style={{ textAlign: "center", padding: "24px 0" }}>
+          <div style={{ fontSize: 48, marginBottom: 14 }}>{icon}</div>
+          <div style={{ fontFamily: F.display, fontSize: 20, color: C.dark, fontWeight: 700, marginBottom: 8 }}>Pro Feature</div>
+          <div style={{ fontFamily: F.body, fontSize: 14, color: C.stone, lineHeight: 1.65, maxWidth: 280, margin: "0 auto 24px" }}>{description}</div>
+          <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+            <Btn variant="ghost" small onClick={onClose}>Not now</Btn>
+            <Btn variant="primary" onClick={() => { onClose(); onUpgrade(); }}>Upgrade to Pro</Btn>
+          </div>
+        </div>
+      );
+    }
+
+    // ── 1. AI Symptom Checker ─────────────────────────────────────────
+    const SYMPTOMS_LIST = [
+      "Not eating / Loss of appetite", "Lethargy / Low energy",
+      "Limping / Lameness", "Labored breathing",
+      "Nasal or eye discharge", "Swelling or lumps",
+      "Diarrhea / Loose stool", "Constipation / Straining",
+      "Isolating from herd", "Rapid weight loss",
+      "Coughing or sneezing", "Pale or white gums",
+      "Hot to touch / Fever", "Bloating / Distended belly",
+    ];
+    const URGENCY_COLOR = { EMERGENCY: C.terracotta, URGENT: C.amber, MONITOR: C.wheat, LIKELY_FINE: C.sage };
+    const URGENCY_ICON  = { EMERGENCY: "🔴", URGENT: "🟠", MONITOR: "🟡", LIKELY_FINE: "🟢" };
+
+    function SymptomCheckerModal({ animals, onClose, isPro, onUpgrade }) {
+      const [sel, setSel] = useState(animals[0]);
+      const [symptoms, setSymptoms] = useState([]);
+      const [extra, setExtra] = useState("");
+      const [loading, setLoading] = useState(false);
+      const [parsed, setParsed] = useState(null);
+      const [error, setError] = useState(null);
+
+      const toggle = s => setSymptoms(p => p.includes(s) ? p.filter(x => x !== s) : [...p, s]);
+
+      const analyze = async () => {
+        if (!symptoms.length && !extra.trim()) return;
+        setLoading(true); setError(null);
+        const a = sel;
+        const age = a.dob ? Math.floor((Date.now()-new Date(a.dob))/31557600000)+"yr" : "unknown age";
+        const meds = (a.meds||[]).slice(-3).map(m=>m.name).join(", ") || "none";
+        const system = `You are an expert veterinary assistant for PasturePal.
+Animal: ${a.name}, ${a.breed} ${a.species}, ${a.sex}, ${age}. Recent meds: ${meds}.
+Respond EXACTLY in this format (no extra text):
+URGENCY: EMERGENCY|URGENT|MONITOR|LIKELY_FINE
+LABEL: [e.g. "Call vet immediately"]
+SUMMARY: [2 sentences plain English]
+CAUSES: [cause 1]|[cause 2]|[cause 3]
+ACTIONS: [step 1]|[step 2]|[step 3]
+WATCH: [sign 1]|[sign 2]`;
+        const msg = `${a.name} symptoms: ${symptoms.join(", ")}${extra ? ". Extra: "+extra : ""}`;
+        try {
+          const text = await callAI(system, msg, 400);
+          const g = k => { const m = text.match(new RegExp(k+":\\s*(.+)")); return m?m[1].trim():""; };
+          setParsed({
+            urgency: g("URGENCY"), label: g("LABEL"), summary: g("SUMMARY"),
+            causes:  g("CAUSES").split("|").filter(Boolean),
+            actions: g("ACTIONS").split("|").filter(Boolean),
+            watch:   g("WATCH").split("|").filter(Boolean),
+          });
+        } catch { setError(AI_ERROR_MSG); }
+        setLoading(false);
+      };
+
+      if (!isPro) return (
+        <Modal title="🩺 AI Symptom Checker" onClose={onClose}>
+          <ProGate icon="🩺" description="Describe your animal's symptoms and get an urgency assessment, possible causes, and immediate action steps — all AI-powered." onUpgrade={onUpgrade} onClose={onClose} />
+        </Modal>
+      );
+
+      return (
+        <Modal title="🩺 AI Symptom Checker" onClose={onClose} wide>
+          {!parsed ? (
+            <>
+              <FieldLabel>Which animal?</FieldLabel>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
+                {animals.map(a => (
+                  <button key={a.id} onClick={() => setSel(a)} style={{ padding: "6px 14px", borderRadius: 100, border: `2px solid ${sel?.id===a.id ? a.color : C.parchment}`, background: sel?.id===a.id ? a.color+"15" : C.white, cursor: "pointer", fontFamily: F.body, fontSize: 12, fontWeight: 600, color: sel?.id===a.id ? a.color : C.stone }}>
+                    {a.emoji} {a.name}
+                  </button>
+                ))}
+              </div>
+              <FieldLabel>What are you observing? (select all that apply)</FieldLabel>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 14 }}>
+                {SYMPTOMS_LIST.map(s => {
+                  const on = symptoms.includes(s);
+                  return (
+                    <button key={s} onClick={() => toggle(s)} style={{ padding: "8px 12px", borderRadius: 8, border: `1.5px solid ${on ? C.terracotta : C.parchment}`, background: on ? C.terracotta+"12" : C.white, cursor: "pointer", fontFamily: F.body, fontSize: 12, fontWeight: on ? 700 : 400, color: on ? C.terracotta : C.stone, textAlign: "left", transition: "all 0.15s" }}>
+                      {on ? "✓ " : ""}{s}
+                    </button>
+                  );
+                })}
+              </div>
+              <Input label="Additional details (optional)" value={extra} onChange={setExtra} placeholder="How long has this been going on? Any recent feed changes?" rows={2} />
+              {error && <div style={{ fontFamily: F.body, fontSize: 12, color: C.amber, padding: "10px 14px", background: C.amber+"12", borderRadius: 8, marginBottom: 12 }}>{error}</div>}
+              <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+                <Btn variant="ghost" small onClick={onClose}>Cancel</Btn>
+                <Btn variant="primary" small disabled={(!symptoms.length && !extra.trim()) || loading} onClick={analyze}>{loading ? "Analyzing…" : "Analyze Symptoms"}</Btn>
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{ background: (URGENCY_COLOR[parsed.urgency]||C.sage)+"18", border: `2px solid ${URGENCY_COLOR[parsed.urgency]||C.sage}44`, borderRadius: 14, padding: "16px 20px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 14 }}>
+                <div style={{ fontSize: 32, flexShrink: 0 }}>{URGENCY_ICON[parsed.urgency]||"🟢"}</div>
+                <div>
+                  <div style={{ fontFamily: F.display, fontSize: 20, fontWeight: 700, color: URGENCY_COLOR[parsed.urgency]||C.sage, marginBottom: 6 }}>{parsed.label}</div>
+                  <div style={{ fontFamily: F.body, fontSize: 14, color: C.brown, lineHeight: 1.6 }}>{parsed.summary}</div>
+                </div>
+              </div>
+              {[["🔍 Possible Causes", parsed.causes], ["⚡ Immediate Actions", parsed.actions], ["👁 Watch For", parsed.watch]].map(([title, items]) => items?.length > 0 && (
+                <div key={title} style={{ marginBottom: 16 }}>
+                  <div style={{ fontFamily: F.body, fontSize: 10, color: C.stone, textTransform: "uppercase", letterSpacing: "0.12em", fontWeight: 700, marginBottom: 8 }}>{title}</div>
+                  {items.map((item, i) => (
+                    <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "7px 0", borderBottom: i < items.length-1 ? `1px solid ${C.parchment}` : "none" }}>
+                      <div style={{ width: 6, height: 6, borderRadius: "50%", background: C.sage, flexShrink: 0, marginTop: 7 }} />
+                      <span style={{ fontFamily: F.body, fontSize: 13, color: C.brown, lineHeight: 1.6 }}>{item}</span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+              <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+                <Btn variant="ghost" small onClick={() => { setParsed(null); setSymptoms([]); setExtra(""); }}>Check Again</Btn>
+                <Btn variant="primary" small onClick={onClose}>Done</Btn>
+              </div>
+            </>
+          )}
+        </Modal>
+      );
+    }
+
+    // ── 2. Per-Animal AI Chat ─────────────────────────────────────────
+    function AnimalAIChat({ animal, isPro, onUpgrade }) {
+      const buildCtx = a => {
+        const age = a.dob ? Math.floor((Date.now()-new Date(a.dob))/31557600000)+" years old" : "unknown age";
+        return `You are the personal AI for ${a.name} in PasturePal. You already know their full record:
+Name: ${a.name} | Species: ${a.species} | Breed: ${a.breed} | Sex: ${a.sex} | Age: ${age} | Tag: ${a.tag||"none"}
+Notes: ${a.notes||"none"}
+Weight history: ${(a.weight||[]).map(w=>`${w.lbs}lbs on ${w.date}`).join(", ")||"none"}
+Medications: ${(a.meds||[]).map(m=>`${m.name} (given ${m.date}${m.due?", next "+m.due:""})`).join("; ")||"none"}
+Reminders: ${(a.reminders||[]).map(r=>`${r.text} due ${r.due}`).join("; ")||"none"}
+Births: ${(a.calving||[]).map(c=>`${c.calfName||"unnamed"} (${c.date})`).join(", ")||"none"}
+Use this data to give specific, personal answers. Be warm and practical. Always recommend a vet for serious concerns.`;
+      };
+
+      const [msgs, setMsgs] = useState([{ role: "assistant", content: `Hi! I'm ${animal.name}'s personal AI. I already know ${animal.name}'s full history — weight records, medications, reminders, and more. What would you like to know? 🌿` }]);
+      const [input, setInput] = useState("");
+      const [loading, setLoading] = useState(false);
+      const bottomRef = useRef();
+      useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs]);
+
+      if (!isPro) return (
+        <div style={{ textAlign: "center", padding: "48px 20px" }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>{animal.emoji}</div>
+          <div style={{ fontFamily: F.display, fontSize: 20, color: C.dark, fontWeight: 700, marginBottom: 8 }}>{animal.name}'s Personal AI</div>
+          <div style={{ fontFamily: F.body, fontSize: 13, color: C.stone, lineHeight: 1.65, maxWidth: 280, margin: "0 auto 24px" }}>AI that knows {animal.name}'s complete history — ask anything without having to explain their records.</div>
+          <Btn variant="primary" small onClick={onUpgrade}>Upgrade to Pro</Btn>
+        </div>
+      );
+
+      const send = async () => {
+        if (!input.trim() || loading) return;
+        const newMsgs = [...msgs, { role: "user", content: input.trim() }];
+        setMsgs(newMsgs); setInput(""); setLoading(true);
+        try {
+          const res = await fetch("https://api.anthropic.com/v1/messages", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 600, system: buildCtx(animal), messages: newMsgs.map(m=>({role:m.role,content:m.content})) })
+          });
+          const data = await res.json();
+          setMsgs(p => [...p, { role: "assistant", content: data.content?.map(b=>b.text||"").join("")||AI_ERROR_MSG }]);
+        } catch { setMsgs(p => [...p, { role: "assistant", content: AI_ERROR_MSG }]); }
+        setLoading(false);
+      };
+
+      const qp = [`Is ${animal.name}'s weight trend healthy?`, `What vaccinations does a ${animal.breed} need?`, "Are any medications overdue?", `What's the ideal diet for this ${animal.species}?`];
+
+      return (
+        <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 280px)", minHeight: 340 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: C.sagePale, border: `1px solid ${C.sageLight}`, borderRadius: 10, marginBottom: 12 }}>
+            <span style={{ fontSize: 14 }}>🧠</span>
+            <span style={{ fontFamily: F.body, fontSize: 11, color: C.sageDark, fontWeight: 600 }}>AI has full access to {animal.name}'s records, weight, medications & reminders</span>
+          </div>
+          <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 12, paddingBottom: 8 }}>
+            {msgs.map((m, i) => (
+              <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: m.role==="user"?"flex-end":"flex-start", gap: 4 }}>
+                {m.role === "assistant" && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                    <div style={{ width: 20, height: 20, borderRadius: "50%", background: animal.color+"22", border: `1px solid ${animal.color}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11 }}>{animal.emoji}</div>
+                    <span style={{ fontFamily: F.body, fontSize: 10, color: C.stone, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em" }}>{animal.name}'s AI</span>
+                  </div>
+                )}
+                <div style={{ maxWidth: "80%", padding: "12px 16px", borderRadius: m.role==="user"?"18px 18px 4px 18px":"4px 18px 18px 18px", background: m.role==="user"?C.brown:C.white, color: m.role==="user"?C.cream:C.dark, fontFamily: F.body, fontSize: 14, lineHeight: 1.7, border: m.role==="user"?"none":`1.5px solid ${C.parchment}`, whiteSpace: "pre-wrap" }}>{m.content}</div>
+              </div>
+            ))}
+            {loading && <div style={{ display:"flex",gap:5,padding:"14px 18px",borderRadius:"4px 18px 18px 18px",background:C.white,border:`1.5px solid ${C.parchment}`,width:"fit-content" }}>{[1,2,3].map(n=><div key={n} className={`pp-dot-${n}`} style={{width:7,height:7,borderRadius:"50%",background:C.sage}}/>)}</div>}
+            <div ref={bottomRef} />
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+            <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&send()} placeholder={`Ask about ${animal.name}…`} style={{ flex:1,padding:"11px 15px",borderRadius:10,border:`1.5px solid ${C.parchment}`,fontFamily:F.body,fontSize:14,background:C.white,color:C.dark,outline:"none" }} />
+            <Btn onClick={send} variant="primary" style={{ borderRadius:10,padding:"11px 18px" }}>Send</Btn>
+          </div>
+          <div style={{ marginTop:8,display:"flex",flexWrap:"wrap",gap:6 }}>
+            {qp.map(q=><button key={q} onClick={()=>setInput(q)} style={{ background:C.white,border:`1.5px solid ${C.parchment}`,borderRadius:100,padding:"4px 12px",fontFamily:F.body,fontSize:11,color:C.stone,cursor:"pointer" }}>{q}</button>)}
+          </div>
+        </div>
+      );
+    }
+
+    // ── 3. AI Auto-Schedule ───────────────────────────────────────────
+    const FALLBACK_SCHEDULE = (a) => {
+      const add = d => { const dt = new Date(); dt.setDate(dt.getDate()+d); return dt.toISOString().split("T")[0]; };
+      const bySpecies = {
+        Cattle: [
+          { type:"vaccination", text:"Annual core vaccination", due:add(30), recurrence:"Annually", notes:"Bovishield Gold or equivalent — consult vet" },
+          { type:"worming",     text:"Dewormer treatment",       due:add(14), recurrence:"Every 3 months", notes:"Rotate dewormers to prevent resistance" },
+          { type:"hoof",        text:"Hoof trim & inspection",   due:add(45), recurrence:"Every 6 weeks",  notes:"Check for signs of foot rot" },
+          { type:"vet",         text:"Annual wellness check",    due:add(60), recurrence:"Annually",       notes:"Body condition score + teeth check" },
+        ],
+        Goat: [
+          { type:"vaccination", text:"CDT booster",              due:add(21), recurrence:"Annually",       notes:"Core vaccine for all goats" },
+          { type:"worming",     text:"FAMACHA check & deworming",due:add(21), recurrence:"Every 3 months", notes:"Check eyelid color first" },
+          { type:"hoof",        text:"Hoof trim",                due:add(42), recurrence:"Every 6 weeks",  notes:"Goats need frequent trimming" },
+          { type:"feed",        text:"Mineral check & top-up",   due:add(14), recurrence:"Monthly",        notes:"Ensure free-choice loose minerals" },
+        ],
+        Pig: [
+          { type:"vaccination", text:"Erysipelas vaccine",       due:add(30), recurrence:"Every 6 months", notes:"Core pig vaccination" },
+          { type:"worming",     text:"Dewormer treatment",       due:add(30), recurrence:"Every 3 months", notes:"" },
+          { type:"vet",         text:"Annual wellness check",    due:add(60), recurrence:"Annually",       notes:"" },
+        ],
+        Sheep: [
+          { type:"vaccination", text:"CDT booster",              due:add(21), recurrence:"Annually",       notes:"Core vaccine for sheep" },
+          { type:"hoof",        text:"Hoof trim",                due:add(42), recurrence:"Every 6 weeks",  notes:"Prevent foot scald and foot rot" },
+          { type:"worming",     text:"Dewormer treatment",       due:add(30), recurrence:"Every 3 months", notes:"" },
+        ],
+        Horse: [
+          { type:"vaccination", text:"Core vaccinations (EWT/WNV)",due:add(30),recurrence:"Annually",     notes:"Eastern/Western/Tetanus + West Nile" },
+          { type:"worming",     text:"Dewormer rotation",        due:add(60), recurrence:"Every 3 months", notes:"Rotate product each treatment" },
+          { type:"vet",         text:"Dental float",             due:add(90), recurrence:"Annually",       notes:"Horses need annual dental care" },
+          { type:"hoof",        text:"Farrier visit",            due:add(42), recurrence:"Every 6 weeks",  notes:"Regular trimming and/or shoeing" },
+        ],
+      };
+      const base = bySpecies[a.species] || bySpecies.Goat;
+      return base.map(r => ({ ...r, id: uid() }));
+    };
+
+    function AutoScheduleModal({ animal, onAddReminders, onClose }) {
+      const [loading, setLoading] = useState(true);
+      const [suggestions, setSuggestions] = useState([]);
+      const [selected, setSelected] = useState({});
+      const [aiGenerated, setAiGenerated] = useState(false);
+
+      useEffect(() => { generate(); }, []);
+
+      const generate = async () => {
+        const today = new Date().toISOString().split("T")[0];
+        const age = animal.dob ? Math.floor((Date.now()-new Date(animal.dob))/31557600000) : 1;
+        const system = `You are a livestock care expert. Respond ONLY with a valid JSON array, zero other text.`;
+        const msg = `Generate 5-7 care reminders for: ${animal.name}, ${animal.breed} ${animal.species}, ${animal.sex}, ~${age} years old. Today: ${today}.
+Return ONLY JSON like: [{"type":"vaccination","text":"CDT Vaccine","due":"YYYY-MM-DD","recurrence":"Annually","notes":"..."}]
+Types: vaccination|feed|hoof|worming|calving|vet|custom. Space dates starting now. Be species-specific.`;
+        try {
+          const text = await callAI(system, msg, 600);
+          const json = JSON.parse(text.match(/\[[\s\S]*\]/)?.[0] || "[]");
+          if (json.length > 0) {
+            const withIds = json.map(r => ({ ...r, id: uid() }));
+            setSuggestions(withIds);
+            setSelected(Object.fromEntries(withIds.map(r => [r.id, true])));
+            setAiGenerated(true);
+          } else throw new Error("empty");
+        } catch {
+          const fb = FALLBACK_SCHEDULE(animal);
+          setSuggestions(fb);
+          setSelected(Object.fromEntries(fb.map(r => [r.id, true])));
+        }
+        setLoading(false);
+      };
+
+      const addSelected = () => {
+        onAddReminders(suggestions.filter(r => selected[r.id] !== false));
+        onClose();
+      };
+
+      return (
+        <Modal title={`📋 Care Schedule for ${animal.name}`} onClose={onClose} wide>
+          {loading ? (
+            <div style={{ textAlign:"center",padding:"40px 0" }}>
+              <div style={{ display:"flex",justifyContent:"center",gap:8,marginBottom:16 }}>{[1,2,3].map(n=><div key={n} className={`pp-dot-${n}`} style={{width:10,height:10,borderRadius:"50%",background:C.sage}}/>)}</div>
+              <div style={{ fontFamily:F.body,fontSize:14,color:C.stone }}>Generating a care schedule for {animal.name}…</div>
+            </div>
+          ) : (
+            <>
+              <div style={{ display:"flex",alignItems:"center",gap:8,padding:"10px 14px",background:aiGenerated?C.sagePale:C.cream,border:`1px solid ${aiGenerated?C.sageLight:C.parchment}`,borderRadius:10,marginBottom:18 }}>
+                <span style={{ fontSize:16 }}>{aiGenerated?"🤖":"📋"}</span>
+                <span style={{ fontFamily:F.body,fontSize:12,color:aiGenerated?C.sageDark:C.stone,fontWeight:500 }}>{aiGenerated?`AI-generated schedule for ${animal.name}`:`Suggested schedule for ${animal.species}s — add your Anthropic key for personalized AI schedules`}</span>
+              </div>
+              <p style={{ fontFamily:F.body,fontSize:13,color:C.stone,marginBottom:18,lineHeight:1.6 }}>Toggle reminders on or off, then add them all at once.</p>
+              <div style={{ display:"grid",gap:8,marginBottom:22 }}>
+                {suggestions.map(r => {
+                  const t = getReminderType(r.type);
+                  const on = selected[r.id] !== false;
+                  return (
+                    <div key={r.id} onClick={() => setSelected(p=>({...p,[r.id]:!p[r.id]}))} style={{ display:"flex",alignItems:"center",gap:12,padding:"12px 14px",borderRadius:12,border:`1.5px solid ${on?t.color+"55":C.parchment}`,background:on?t.color+"0C":C.white,cursor:"pointer",transition:"all 0.15s" }}>
+                      <div style={{ width:36,height:36,borderRadius:10,background:on?t.color+"20":C.cream,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0 }}>{t.icon}</div>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontFamily:F.body,fontWeight:700,fontSize:14,color:on?C.dark:C.stone }}>{r.text}</div>
+                        <div style={{ fontFamily:F.body,fontSize:11,color:C.pebble,marginTop:2 }}>{fmt(r.due)} · {r.recurrence}</div>
+                        {r.notes && <div style={{ fontFamily:F.body,fontSize:11,color:C.stone,marginTop:2,fontStyle:"italic" }}>{r.notes}</div>}
+                      </div>
+                      <div style={{ width:22,height:22,borderRadius:6,border:`2px solid ${on?t.color:C.parchment}`,background:on?t.color:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
+                        {on && <span style={{ color:"white",fontSize:13,fontWeight:700 }}>✓</span>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ display:"flex",gap:10,justifyContent:"space-between",alignItems:"center" }}>
+                <span style={{ fontFamily:F.body,fontSize:12,color:C.stone }}>{Object.values(selected).filter(Boolean).length} of {suggestions.length} selected</span>
+                <div style={{ display:"flex",gap:8 }}>
+                  <Btn variant="ghost" small onClick={onClose}>Skip</Btn>
+                  <Btn variant="primary" small disabled={!Object.values(selected).some(Boolean)} onClick={addSelected}>Add Selected</Btn>
+                </div>
+              </div>
+            </>
+          )}
+        </Modal>
+      );
+    }
+
+    // ── 4. AI Body Condition Score ────────────────────────────────────
+    function BCSCheck({ animal, isPro, onUpgrade }) {
+      const inputRef = useRef();
+      const [loading, setLoading] = useState(false);
+      const [result, setResult] = useState(null);
+      const [error, setError] = useState(null);
+      const BCS_SCALE = { Cattle:"1–9", Goat:"1–5", Sheep:"1–5", Horse:"1–9", Pig:"1–5", default:"1–5" };
+      const scale = BCS_SCALE[animal.species] || BCS_SCALE.default;
+
+      const analyze = async (e) => {
+        const file = e.target.files[0]; if (!file) return;
+        setLoading(true); setResult(null); setError(null);
+        const reader = new FileReader();
+        reader.onload = async ev => {
+          const base64 = ev.target.result.split(",")[1];
+          const system = `You are a livestock body condition scoring expert for PasturePal.`;
+          const msg = `Score this ${animal.breed} ${animal.species} using the ${scale} BCS scale.
+Respond EXACTLY:
+SCORE: [e.g. 5/9]
+STATUS: [Underweight|Ideal|Overweight]
+ASSESSMENT: [2 sentences on what you see]
+RECOMMENDATION: [1 sentence action]
+IDEAL_RANGE: [ideal BCS range for this species]`;
+          try {
+            const text = await callAIWithImage(system, msg, base64);
+            const g = k => { const m = text.match(new RegExp(k+":\\s*(.+)")); return m?m[1].trim():""; };
+            setResult({ score:g("SCORE"), status:g("STATUS"), assessment:g("ASSESSMENT"), recommendation:g("RECOMMENDATION"), ideal:g("IDEAL_RANGE") });
+          } catch { setError(AI_ERROR_MSG); }
+          setLoading(false);
+        };
+        reader.readAsDataURL(file);
+        e.target.value = "";
+      };
+
+      const statusColor = { Underweight: C.terracotta, Ideal: C.sage, Overweight: C.amber };
+
+      if (!isPro) return (
+        <div style={{ background:C.cream,border:`1.5px dashed ${C.parchment}`,borderRadius:14,padding:"20px",textAlign:"center",marginTop:16 }}>
+          <div style={{ fontSize:28,marginBottom:8 }}>📊</div>
+          <div style={{ fontFamily:F.display,fontSize:16,color:C.dark,fontWeight:700,marginBottom:6 }}>AI Body Condition Score</div>
+          <div style={{ fontFamily:F.body,fontSize:12,color:C.stone,marginBottom:14,lineHeight:1.55 }}>Upload a photo and AI rates {animal.name}'s body condition on the {scale} scale — the same metric vets use.</div>
+          <Btn small variant="primary" onClick={onUpgrade}>Upgrade to Pro</Btn>
+        </div>
+      );
+
+      return (
+        <div style={{ marginTop:16 }}>
+          <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10 }}>
+            <div style={{ fontFamily:F.body,fontSize:11,color:C.stone,textTransform:"uppercase",letterSpacing:"0.12em",fontWeight:700 }}>📊 AI Body Condition Score</div>
+            <Btn small variant="outline" onClick={() => inputRef.current.click()} disabled={loading}>{loading?"Analyzing…":"Upload Photo"}</Btn>
+          </div>
+          <input ref={inputRef} type="file" accept="image/*" style={{ display:"none" }} onChange={analyze} />
+          {error && <div style={{ fontFamily:F.body,fontSize:12,color:C.amber,padding:"10px 14px",background:C.amber+"12",borderRadius:8 }}>{error}</div>}
+          {result && (
+            <div style={{ background:`linear-gradient(135deg,${(statusColor[result.status]||C.sage)+"15"},${C.offWhite})`,border:`1.5px solid ${(statusColor[result.status]||C.sage)+"44"}`,borderRadius:14,padding:"18px" }}>
+              <div style={{ display:"flex",alignItems:"center",gap:14,marginBottom:14 }}>
+                <div style={{ textAlign:"center",flexShrink:0 }}>
+                  <div style={{ fontFamily:F.display,fontSize:32,fontWeight:800,color:statusColor[result.status]||C.sage,lineHeight:1 }}>{result.score}</div>
+                  <div style={{ fontFamily:F.body,fontSize:10,color:C.stone,textTransform:"uppercase",letterSpacing:"0.1em",fontWeight:600,marginTop:2 }}>BCS Score</div>
+                </div>
+                <div style={{ width:1,height:40,background:C.parchment }} />
+                <div>
+                  <Badge color={statusColor[result.status]||C.sage}>{result.status}</Badge>
+                  <div style={{ fontFamily:F.body,fontSize:11,color:C.stone,marginTop:6 }}>Ideal range: {result.ideal}</div>
+                </div>
+              </div>
+              <div style={{ fontFamily:F.body,fontSize:13,color:C.brown,lineHeight:1.65,marginBottom:10 }}>{result.assessment}</div>
+              {result.recommendation && <div style={{ fontFamily:F.body,fontSize:12,color:C.stone,fontStyle:"italic" }}>💡 {result.recommendation}</div>}
+            </div>
+          )}
+          {!result && !error && !loading && (
+            <div style={{ fontFamily:F.body,fontSize:12,color:C.pebble,textAlign:"center",padding:"12px 0" }}>Upload a clear side-view photo of {animal.name} for an AI body condition score</div>
+          )}
+        </div>
+      );
+    }
+
+    // ── 5. AI Weekly Digest ───────────────────────────────────────────
+    function WeeklyDigestModal({ animals, onClose, isPro, onUpgrade }) {
+      const [loading, setLoading] = useState(true);
+      const [digest, setDigest] = useState(null);
+      const [error, setError] = useState(null);
+
+      useEffect(() => { if (isPro) generate(); else setLoading(false); }, []);
+
+      const generate = async () => {
+        const season = getSeason();
+        const upcoming = animals.flatMap(a => (a.reminders||[]).filter(r => { const d=daysUntil(r.due); return d!==null&&d<=7&&d>=0; }).map(r=>`${a.name}: ${r.text} (${fmt(r.due)})`));
+        const overdue  = animals.flatMap(a => (a.reminders||[]).filter(r => { const d=daysUntil(r.due); return d!==null&&d<0; }).map(r=>`${a.name}: ${r.text}`));
+        const system = `You are the AI writer for PasturePal. Write warm, encouraging homestead farm journal digests.`;
+        const msg = `Write a weekly homestead digest for this farm:
+Animals: ${animals.map(a=>`${a.name} (${a.breed} ${a.species})`).join(", ")||"no animals yet"}
+Season: ${season.name}
+Overdue tasks: ${overdue.join(", ")||"none — all caught up!"}
+This week's upcoming: ${upcoming.join(", ")||"nothing due this week"}
+Write in warm farm-journal style, under 220 words. Include: a greeting with today's date, brief herd overview, this week's priorities from the list above, and one ${season.name.toLowerCase()} husbandry tip for their specific animals. Start with "Good morning, farmer!"`;
+        try {
+          setDigest(await callAI(system, msg, 400));
+        } catch { setError(AI_ERROR_MSG); }
+        setLoading(false);
+      };
+
+      const season = getSeason();
+
+      if (!isPro) return (
+        <Modal title="📰 Weekly Homestead Digest" onClose={onClose}>
+          <ProGate icon="📰" description="A personalized weekly farm report — your herd status, this week's tasks, and a seasonal tip, written in farm-journal style every Monday." onUpgrade={onUpgrade} onClose={onClose} />
+        </Modal>
+      );
+
+      return (
+        <Modal title="📰 Weekly Homestead Digest" onClose={onClose}>
+          {loading ? (
+            <div style={{ textAlign:"center",padding:"40px 0" }}>
+              <div style={{ display:"flex",justifyContent:"center",gap:8,marginBottom:16 }}>{[1,2,3].map(n=><div key={n} className={`pp-dot-${n}`} style={{width:10,height:10,borderRadius:"50%",background:C.sage}}/>)}</div>
+              <div style={{ fontFamily:F.body,fontSize:14,color:C.stone }}>Writing your weekly digest…</div>
+            </div>
+          ) : (
+            <>
+              <div style={{ background:season.bg,border:`1.5px solid ${season.accent}33`,borderRadius:14,padding:"18px 20px",marginBottom:16 }}>
+                <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:10 }}>
+                  <span style={{ fontSize:18 }}>{season.emoji}</span>
+                  <span style={{ fontFamily:F.mono,fontSize:11,color:season.accent,fontWeight:600 }}>{new Date().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric",year:"numeric"})}</span>
+                </div>
+                <div style={{ height:1,background:season.accent+"30",marginBottom:14 }} />
+                {error
+                  ? <div style={{ fontFamily:F.body,fontSize:13,color:C.amber }}>{error}</div>
+                  : <div style={{ fontFamily:F.body,fontSize:14,color:C.brown,lineHeight:1.85,whiteSpace:"pre-wrap" }}>{digest}</div>
+                }
+              </div>
+              <Btn full variant="ghost" onClick={onClose}>Close</Btn>
+            </>
+          )}
+        </Modal>
+      );
+    }
+
+    function StatCard({ icon, value, label, accent, detail, isEmpty }) {
+      return (
+        <div className="pp-stat" style={{
+          background: isEmpty ? C.offWhite : `linear-gradient(150deg, ${C.offWhite} 0%, ${accent}0D 100%)`,
+          borderRadius: 16,
+          border: `1px solid ${isEmpty ? C.parchment : accent + "30"}`,
+          borderTop: `3px solid ${isEmpty ? C.parchment : accent}`,
+          boxShadow: isEmpty ? "0 2px 6px rgba(42,31,14,0.04)" : `0 3px 14px ${accent}1A`,
+          padding: "18px 10px 14px",
+          textAlign: "center",
+        }}>
+          <div style={{ fontSize: 22, marginBottom: 7 }}>{icon}</div>
+          <div style={{ fontFamily: F.display, fontSize: 34, color: isEmpty ? C.pebble : C.dark, fontWeight: 800, lineHeight: 1, marginBottom: 5 }}>{value}</div>
+          <div style={{ fontFamily: F.body, fontSize: 10, color: C.stone, textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 600 }}>{label}</div>
+          {detail && <div style={{ fontFamily: F.body, fontSize: 10, color: accent, marginTop: 5, fontWeight: 700, letterSpacing: "0.04em" }}>{detail}</div>}
+        </div>
+      );
+    }
+
+    function SeasonalCard() {
+      const s = getSeason();
+      const [idx, setIdx] = useState(() => Math.floor(Math.random() * s.tips.length));
+      return (
+        <div style={{ background: s.bg, border: `1.5px solid ${s.accent}30`, borderRadius: 16, padding: "18px 20px", position: "relative", overflow: "hidden" }}>
+          <div style={{ position: "absolute", top: -24, right: -24, width: 88, height: 88, borderRadius: "50%", background: s.accent + "18", pointerEvents: "none" }} />
+          <div style={{ position: "absolute", bottom: -16, left: 60, width: 60, height: 60, borderRadius: "50%", background: s.accent + "0C", pointerEvents: "none" }} />
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 14, position: "relative" }}>
+            <div style={{ fontSize: 30, lineHeight: 1, flexShrink: 0, marginTop: 1 }}>{s.emoji}</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontFamily: F.body, fontSize: 10, color: s.accent, textTransform: "uppercase", letterSpacing: "0.16em", fontWeight: 700, marginBottom: 7 }}>
+                {s.name} on the Homestead
+              </div>
+              <p style={{ fontFamily: F.body, fontSize: 13, color: C.brown, lineHeight: 1.7, margin: 0 }}>{s.tips[idx]}</p>
+              <button onClick={() => setIdx(i => (i + 1) % s.tips.length)} style={{ marginTop: 10, background: "none", border: "none", cursor: "pointer", fontFamily: F.body, fontSize: 11, color: s.accent, fontWeight: 700, padding: 0, letterSpacing: "0.02em" }}>
+                Next tip →
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function Dashboard({ animals, onSelect, onUpgrade, isPro, onQuickReminder, onGestation, onSymptomCheck, onDigest }) {
+      const allMeds = animals.flatMap(a => (a.meds || []).filter(m => { const d = daysUntil(m.due); return d !== null && d <= 30 && d >= 0; }).map(m => ({ ...m, animalName: a.name })));
+      const allRem  = animals.flatMap(a => (a.reminders || []).filter(r => { const d = daysUntil(r.due); return d !== null && d <= 14 && d >= 0; }).map(r => ({ ...r, animalName: a.name })));
+      const alerts  = [...allMeds.map(m => ({ text: `${m.animalName}: ${m.name}`, due: m.due, type: "med" })), ...allRem.map(r => ({ text: `${r.animalName}: ${r.text}`, due: r.due, type: r.type || "custom" }))].sort((a, b) => new Date(a.due) - new Date(b.due));
+      const overdueCount = alerts.filter(a => daysUntil(a.due) < 0).length;
+
+      return (
+        <div style={{ display: "grid", gap: 16 }}>
+
+          {/* AI quick-action bar */}
+          <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+            <button onClick={onSymptomCheck} style={{ display:"flex",alignItems:"center",gap:6,padding:"8px 14px",borderRadius:100,border:`1.5px solid ${C.terracotta}44`,background:C.terracotta+"10",cursor:"pointer",fontFamily:F.body,fontSize:12,fontWeight:700,color:C.terracotta }}>🩺 Symptom Checker</button>
+            <button onClick={onDigest} style={{ display:"flex",alignItems:"center",gap:6,padding:"8px 14px",borderRadius:100,border:`1.5px solid ${C.sage}44`,background:C.sage+"10",cursor:"pointer",fontFamily:F.body,fontSize:12,fontWeight:700,color:C.sageDark }}>📰 Weekly Digest</button>
+            <button onClick={onGestation} style={{ display:"flex",alignItems:"center",gap:6,padding:"8px 14px",borderRadius:100,border:`1.5px solid ${C.dustyRose}44`,background:C.dustyRose+"10",cursor:"pointer",fontFamily:F.body,fontSize:12,fontWeight:700,color:C.dustyRose }}>🐣 Gestation Calc</button>
+          </div>
+
+          {/* Herd Health Score */}
+          <HerdHealthScore animals={animals} />
+
+          {/* Stat cards */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+            <StatCard icon="🐄" value={animals.length} label="Animals"  accent={C.sage}       isEmpty={animals.length === 0} detail={animals.length > 0 ? `${animals.map(a=>a.emoji).slice(0,3).join(" ")}` : null} />
+            <StatCard icon="💉" value={allMeds.length} label="Meds Due" accent={allMeds.length > 0 ? C.terracotta : C.parchment} isEmpty={allMeds.length === 0} detail={allMeds.length > 0 ? "this month" : "all clear"} />
+            <StatCard icon="🔔" value={allRem.length}  label="Due Soon" accent={allRem.length > 0 ? C.amber : C.parchment}      isEmpty={allRem.length === 0}  detail={overdueCount > 0 ? `${overdueCount} overdue!` : allRem.length > 0 ? "coming up" : "on track"} />
+          </div>
+
+          {/* Upgrade CTA — prominent, above the fold */}
+          {!isPro && (
+            <div onClick={onUpgrade} className="pp-card-hover" style={{ cursor: "pointer", background: `linear-gradient(135deg, ${C.brown} 0%, ${C.midBrown} 100%)`, borderRadius: 16, padding: "18px 20px", display: "flex", alignItems: "center", gap: 16, boxShadow: `0 4px 20px ${C.brown}30` }}>
+              <div style={{ width: 46, height: 46, borderRadius: 12, background: "rgba(245,237,216,0.15)", border: "1.5px solid rgba(245,237,216,0.25)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <HighlandCowLogo size={30} color={C.cream} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontFamily: F.display, fontSize: 16, color: C.cream, fontWeight: 700, marginBottom: 3 }}>Upgrade to Pro — just $6/mo</div>
+                <div style={{ fontFamily: F.body, fontSize: 12, color: C.parchment, lineHeight: 1.55 }}>Unlimited animals · AI assistant · Google Calendar sync · 14-day free trial</div>
+              </div>
+              <svg width="7" height="12" viewBox="0 0 7 12" fill="none" style={{ color: C.sageLight, flexShrink: 0 }}><path d="M1 1l5 5-5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </div>
+          )}
+
+          {/* Seasonal tip */}
+          <SeasonalCard />
+
+          {/* All-clear state */}
+          {alerts.length === 0 && (
+            <div style={{ background: `linear-gradient(135deg, ${C.sagePale} 0%, ${C.offWhite} 100%)`, border: `1.5px solid ${C.sageLight}`, borderRadius: 16, padding: "22px 20px", display: "flex", alignItems: "center", gap: 16 }}>
+              <div style={{ fontSize: 36, lineHeight: 1 }}>🌿</div>
+              <div>
+                <div style={{ fontFamily: F.display, fontSize: 18, color: C.dark, fontWeight: 700, marginBottom: 4 }}>All caught up!</div>
+                <div style={{ fontFamily: F.body, fontSize: 13, color: C.stone, lineHeight: 1.6 }}>No upcoming tasks in the next two weeks. Your herd is on track — enjoy the homestead.</div>
+              </div>
+            </div>
+          )}
+
+          {/* Alerts */}
+          {alerts.length > 0 && (
+            <Card>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: C.terracotta, boxShadow: `0 0 0 3px ${C.terracotta}22` }} />
+                  <span style={{ fontFamily: F.body, fontSize: 11, color: C.terracotta, textTransform: "uppercase", letterSpacing: "0.12em", fontWeight: 700 }}>Upcoming Tasks</span>
+                </div>
+                <span style={{ fontFamily: F.body, fontSize: 11, color: C.pebble }}>{alerts.length} item{alerts.length !== 1 ? "s" : ""}</span>
+              </div>
+              {alerts.map((item, i) => {
+                const d = daysUntil(item.due);
+                const urgent = d !== null && d <= 3;
+                const ov = d !== null && d < 0;
+                const rt = getReminderType(item.type);
+                const gcUrl = item.due ? getGCalUrl(item.text, item.due, "", "") : null;
+                return (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: i < alerts.length - 1 ? `1px solid ${C.parchment}` : "none" }}>
+                    <div style={{ fontSize: 16, width: 24, textAlign: "center", flexShrink: 0 }}>{rt.icon}</div>
+                    <div style={{ flex: 1, fontFamily: F.body, fontSize: 14, color: C.brown, fontWeight: 500 }}>{item.text}</div>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                      {gcUrl && <a href={gcUrl} target="_blank" rel="noopener noreferrer" title="Add to Google Calendar" style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 26, height: 26, borderRadius: 6, background: "#4285F415", border: "1px solid #4285F433", textDecoration: "none" }}><svg width="13" height="13" viewBox="0 0 24 24" fill="#4285F4"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/></svg></a>}
+                      <Badge color={ov ? C.terracotta : urgent ? C.amber : C.sage} small>{ov ? "Overdue" : d === 0 ? "Today" : `${d}d`}</Badge>
+                    </div>
+                  </div>
+                );
+              })}
+            </Card>
+          )}
+
+          {/* Quick Add Reminders — 3×2 grid */}
+          <Card style={{ background: `linear-gradient(150deg, ${C.offWhite} 0%, ${C.cream} 100%)` }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <div style={{ fontFamily: F.body, fontSize: 10, color: C.stone, textTransform: "uppercase", letterSpacing: "0.14em", fontWeight: 700 }}>Quick Add Reminder</div>
+              <button onClick={onGestation} style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 100, border: `1.5px solid ${C.dustyRose}44`, background: C.dustyRose + "12", cursor: "pointer", fontFamily: F.body, fontSize: 11, fontWeight: 700, color: C.dustyRose }}>
+                🐣 Gestation Calculator
+              </button>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+              {REMINDER_TYPES.filter(t => t.key !== "custom").map(t => (
+                <button key={t.key} onClick={() => onQuickReminder(t.key)} className="reminder-type-btn" style={{ padding: "12px 8px", borderRadius: 12, border: `1.5px solid ${t.color}44`, background: `linear-gradient(145deg, ${t.color}10, ${t.color}06)`, cursor: "pointer", fontFamily: F.body, fontSize: 11, fontWeight: 600, color: t.color, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, boxShadow: "0 1px 4px rgba(42,31,14,0.05)" }}>
+                  <span style={{ fontSize: 20 }}>{t.icon}</span>
+                  <span style={{ letterSpacing: "0.02em" }}>{t.label}</span>
+                </button>
+              ))}
+            </div>
+          </Card>
+
+          <FarmDivider label="Your Herd" />
+
+          {/* Animal cards */}
+          {animals.map(a => {
+            const medDue = (a.meds || []).some(m => { const d = daysUntil(m.due); return d !== null && d <= 14 && d >= 0; });
+            const remDue = (a.reminders || []).some(r => { const d = daysUntil(r.due); return d !== null && d <= 7 && d >= 0; });
+            return (
+              <Card key={a.id} onClick={() => onSelect(a)} hoverable style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 18px" }}>
+                <AnimalAvatar animal={a} size={58} radius={13} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: F.display, fontWeight: 800, fontSize: 18, color: C.dark, letterSpacing: "-0.01em", marginBottom: 5 }}>{a.name}</div>
+                  <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                    <Badge color={a.color} small>{a.breed} {a.species}</Badge>
+                    <Badge outline small>{a.sex}</Badge>
+                  </div>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
+                  {medDue && <Badge color={C.terracotta} small>Med Due</Badge>}
+                  {remDue && <Badge color={C.amber} small>Task Due</Badge>}
+                  {(a.calving || []).length > 0 && <Badge color={C.sage} small>{a.calving.length} birth{a.calving.length > 1 ? "s" : ""}</Badge>}
+                </div>
+                <svg width="7" height="12" viewBox="0 0 7 12" fill="none" style={{ color: C.pebble, flexShrink: 0, marginLeft: 4 }}><path d="M1 1l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </Card>
+            );
+          })}
+        </div>
+      );
+    }
+
+    // ── Garden: Add Plant Modal ───────────────────────────────────────
+    function AddPlantModal({ onSave, onClose }) {
+      const [selected, setSelected] = useState(null);
+      const [customName, setCustomName] = useState("");
+      const [planted, setPlanted]   = useState(new Date().toISOString().slice(0,10));
+      const [bed, setBed]           = useState("");
+      const [notes, setNotes]       = useState("");
+      const [filter, setFilter]     = useState("All");
+
+      const types = ["All", "Vegetable", "Fruit", "Herb", "Flower", "Other"];
+      const shown = COMMON_PLANTS.filter(p => filter === "All" || p.type === filter);
+      const plant = selected;
+
+      function handleSave() {
+        if (!plant) return;
+        const name = (plant.name === "Custom Plant" && customName) ? customName : plant.name;
+        const harvestDate = planted ? new Date(new Date(planted).getTime() + plant.daysToHarvest * 86400000).toISOString().slice(0,10) : null;
+        onSave({
+          id: uid(),
+          name,
+          emoji: plant.emoji,
+          type: plant.type,
+          color: plant.color,
+          daysToHarvest: plant.daysToHarvest,
+          planted,
+          harvestDate,
+          bed,
+          notes,
+          status: "Seedling",
+          statusEmoji: "🌱",
+        });
+      }
+
+      return (
+        <Modal title="Add to Garden" onClose={onClose} wide>
+          {/* Type filter */}
+          <div style={{ display:"flex", gap:6, marginBottom:14, flexWrap:"wrap" }}>
+            {types.map(t => (
+              <button key={t} onClick={() => setFilter(t)} style={{ padding:"4px 12px", borderRadius:100, border:`1.5px solid ${filter===t ? C.sage : C.parchment}`, background: filter===t ? C.sage : "transparent", color: filter===t ? C.white : C.stone, fontFamily:F.body, fontSize:11, fontWeight:600, cursor:"pointer" }}>{t}</button>
+            ))}
+          </div>
+
+          {/* Plant grid */}
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(4, 1fr)", gap:8, marginBottom:18, maxHeight:200, overflowY:"auto" }}>
+            {shown.map(p => (
+              <button key={p.name} onClick={() => setSelected(p)} style={{ padding:"10px 6px", borderRadius:12, border:`2px solid ${selected?.name===p.name ? p.color : C.parchment}`, background: selected?.name===p.name ? p.color+"18" : C.white, cursor:"pointer", textAlign:"center", transition:"all 0.15s" }}>
+                <div style={{ fontSize:22, marginBottom:3 }}>{p.emoji}</div>
+                <div style={{ fontFamily:F.body, fontSize:10, fontWeight:selected?.name===p.name ? 700 : 500, color: selected?.name===p.name ? p.color : C.stone, lineHeight:1.2 }}>{p.name}</div>
+              </button>
+            ))}
+          </div>
+
+          {selected && (
+            <div className="pp-animate">
+              <Divider label={`${selected.emoji} ${selected.name}`} />
+              {selected.name === "Custom Plant" && (
+                <Input label="Plant Name" value={customName} onChange={setCustomName} placeholder="e.g. Cherokee Purple Tomato" />
+              )}
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+                <div>
+                  <FieldLabel>Date Planted</FieldLabel>
+                  <input type="date" value={planted} onChange={e => setPlanted(e.target.value)} style={{ width:"100%", padding:"10px 14px", borderRadius:10, border:`1.5px solid ${C.parchment}`, fontFamily:F.body, fontSize:14, background:C.white, color:C.dark }} />
+                </div>
+                <Input label="Garden Bed / Location" value={bed} onChange={setBed} placeholder="e.g. Raised Bed 2" />
+              </div>
+              <Input label="Notes (optional)" value={notes} onChange={setNotes} placeholder="Variety, spacing, etc." rows={2} />
+              <div style={{ background:C.sagePale, borderRadius:12, padding:"10px 14px", marginBottom:14 }}>
+                <div style={{ fontFamily:F.body, fontSize:12, color:C.sageDark }}>
+                  🗓️ Expected harvest in <strong>{selected.daysToHarvest} days</strong>
+                  {planted && <span> — around <strong>{new Date(new Date(planted).getTime() + selected.daysToHarvest*86400000).toLocaleDateString("en-US",{month:"short",day:"numeric"})}</strong></span>}
+                </div>
+              </div>
+              <Btn full variant="sage" onClick={handleSave}>🌱 Add to Garden</Btn>
+            </div>
+          )}
+        </Modal>
+      );
+    }
+
+    // ── Garden: Plant Card ────────────────────────────────────────────
+    function PlantCard({ plant, onUpdate, onDelete }) {
+      const [expanded, setExpanded] = useState(false);
+      const progress = getPlantProgress(plant);
+      const statusObj = PLANT_STATUSES.find(s => s.label === plant.status) || PLANT_STATUSES[0];
+      const daysLeft = plant.harvestDate ? daysUntil(plant.harvestDate) : null;
+      const gcUrl = plant.harvestDate ? getGardenGCalUrl(plant.name, plant.harvestDate, plant.notes) : null;
+
+      function cycleStatus() {
+        const idx = PLANT_STATUSES.findIndex(s => s.label === plant.status);
+        const next = PLANT_STATUSES[(idx + 1) % PLANT_STATUSES.length];
+        onUpdate({ ...plant, status: next.label, statusEmoji: next.emoji });
+      }
+
+      return (
+        <Card style={{ padding:0, overflow:"hidden" }}>
+          <div onClick={() => setExpanded(e => !e)} style={{ padding:"14px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:12 }}>
+            {/* Color bar */}
+            <div style={{ width:4, alignSelf:"stretch", borderRadius:4, background: plant.color || C.sage, flexShrink:0 }} />
+            <div style={{ fontSize:28, flexShrink:0 }}>{plant.emoji}</div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontFamily:F.display, fontWeight:700, fontSize:16, color:C.dark }}>{plant.name}</div>
+              <div style={{ fontFamily:F.body, fontSize:11, color:C.stone }}>{plant.bed || "Garden"} · Planted {plant.planted ? fmt(plant.planted) : "—"}</div>
+              {/* Progress bar */}
+              <div style={{ marginTop:6, height:4, background:C.parchment, borderRadius:4, overflow:"hidden" }}>
+                <div style={{ height:"100%", width:`${progress}%`, background: statusObj.color, borderRadius:4, transition:"width 0.5s ease" }} />
+              </div>
+            </div>
+            <div style={{ flexShrink:0, textAlign:"right" }}>
+              <div style={{ background: statusObj.color + "22", color: statusObj.color, border:`1.5px solid ${statusObj.color}55`, borderRadius:100, padding:"2px 10px", fontFamily:F.body, fontSize:10, fontWeight:700, whiteSpace:"nowrap" }}>
+                {statusObj.emoji} {statusObj.label}
+              </div>
+              {daysLeft !== null && (
+                <div style={{ fontFamily:F.body, fontSize:10, color: daysLeft <= 7 ? C.terracotta : C.stone, fontWeight: daysLeft <= 7 ? 700 : 400, marginTop:4 }}>
+                  {daysLeft <= 0 ? "Ready!" : `${daysLeft}d to harvest`}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {expanded && (
+            <div className="pp-animate" style={{ borderTop:`1px solid ${C.parchment}`, padding:"14px 16px 16px 36px", background:C.cream+"60" }}>
+              <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:12 }}>
+                <button onClick={cycleStatus} style={{ padding:"6px 14px", borderRadius:8, border:`1.5px solid ${statusObj.color}55`, background:statusObj.color+"18", color:statusObj.color, fontFamily:F.body, fontSize:11, fontWeight:700, cursor:"pointer" }}>
+                  Mark as next status →
+                </button>
+                {gcUrl && (
+                  <a href={gcUrl} target="_blank" rel="noopener noreferrer" style={{ display:"flex", alignItems:"center", gap:6, padding:"6px 14px", borderRadius:8, background:"#4285F415", border:"1px solid #4285F433", color:"#4285F4", fontFamily:F.body, fontSize:11, fontWeight:600, textDecoration:"none" }}>
+                    📅 Add to Calendar
+                  </a>
+                )}
+                <button onClick={() => onDelete(plant.id)} style={{ padding:"6px 14px", borderRadius:8, border:`1.5px solid ${C.terracotta}44`, background:C.terracotta+"12", color:C.terracotta, fontFamily:F.body, fontSize:11, fontWeight:600, cursor:"pointer" }}>
+                  Remove
+                </button>
+              </div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8 }}>
+                <div style={{ background:C.white, borderRadius:10, padding:"10px 12px" }}>
+                  <div style={{ fontFamily:F.body, fontSize:9, color:C.stone, textTransform:"uppercase", letterSpacing:"0.1em", fontWeight:700, marginBottom:3 }}>Days in Ground</div>
+                  <div style={{ fontFamily:F.display, fontSize:18, fontWeight:800, color:C.dark }}>{daysInGround(plant.planted)}</div>
+                </div>
+                <div style={{ background:C.white, borderRadius:10, padding:"10px 12px" }}>
+                  <div style={{ fontFamily:F.body, fontSize:9, color:C.stone, textTransform:"uppercase", letterSpacing:"0.1em", fontWeight:700, marginBottom:3 }}>Progress</div>
+                  <div style={{ fontFamily:F.display, fontSize:18, fontWeight:800, color:C.dark }}>{progress}%</div>
+                </div>
+                <div style={{ background:C.white, borderRadius:10, padding:"10px 12px" }}>
+                  <div style={{ fontFamily:F.body, fontSize:9, color:C.stone, textTransform:"uppercase", letterSpacing:"0.1em", fontWeight:700, marginBottom:3 }}>Est. Harvest</div>
+                  <div style={{ fontFamily:F.body, fontSize:12, fontWeight:700, color:C.brown }}>{plant.harvestDate ? fmt(plant.harvestDate) : "—"}</div>
+                </div>
+              </div>
+              {plant.notes && <div style={{ marginTop:10, fontFamily:F.body, fontSize:12, color:C.stone, fontStyle:"italic" }}>📝 {plant.notes}</div>}
+            </div>
+          )}
+        </Card>
+      );
+    }
+
+    // ── Garden: AI Chat ───────────────────────────────────────────────
+    function GardenAIChat({ garden, zipCode, zone, isPro, onUpgrade }) {
+      const [msgs, setMsgs]   = useState([]);
+      const [input, setInput] = useState("");
+      const [loading, setLoading] = useState(false);
+      const endRef = useRef(null);
+      const AI_ERROR = "AI chat requires a backend proxy. When deployed on Vercel with /api/chat, the garden advisor will answer questions about your zone, frost dates, plant timing, and pest management.";
+
+      const monthName = new Date().toLocaleString("en-US",{month:"long"});
+      const climBand  = getZoneClimBand(zone);
+      const frostInfo = FROST_DATES[zone?.toLowerCase()] || {};
+      const plantList = garden.map(p => `${p.name} (${p.status}, planted ${p.planted||"unknown"}, ${daysInGround(p.planted)}d in ground)`).join("; ");
+
+      const systemPrompt = `You are a knowledgeable garden advisor for a homestead app. The user's garden details:
+- USDA Zone: ${zone || "unknown"} (${climBand} climate)
+- Zip code: ${zipCode || "unknown"}
+- Last frost: ${frostInfo.last || "unknown"}, First fall frost: ${frostInfo.first || "unknown"}
+- Current month: ${monthName}
+- Plants in garden: ${plantList || "none yet"}
+
+Give practical, zone-specific gardening advice. Be warm, encouraging, and concise. Cover pest/disease management, harvest timing, companion planting, soil health, and seasonal tasks. Always tailor advice to their specific USDA zone and current month.`;
+
+      useEffect(() => { endRef.current?.scrollIntoView({ behavior:"smooth" }); }, [msgs]);
+
+      async function send() {
+        if (!input.trim() || loading) return;
+        if (!isPro) { onUpgrade(); return; }
+        const userMsg = { role:"user", content:input.trim() };
+        const newMsgs = [...msgs, userMsg];
+        setMsgs(newMsgs);
+        setInput("");
+        setLoading(true);
+        try {
+          const resp = await fetch("/api/chat", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ system: systemPrompt, messages: newMsgs, maxTokens: 600 }) });
+          const data = await resp.json();
+          setMsgs(m => [...m, { role:"assistant", content: data.content || AI_ERROR }]);
+        } catch {
+          setMsgs(m => [...m, { role:"assistant", content: AI_ERROR }]);
+        }
+        setLoading(false);
+      }
+
+      const starters = ["What should I plant this month?","Any pest alerts for my zone?","When should I harvest my tomatoes?","How do I improve my soil?"];
+
+      return (
+        <Card style={{ background:`linear-gradient(150deg, ${C.sagePale} 0%, ${C.offWhite} 100%)` }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:16 }}>
+            <div style={{ fontSize:28 }}>🌱</div>
+            <div>
+              <div style={{ fontFamily:F.display, fontWeight:800, fontSize:18, color:C.dark }}>Garden Advisor</div>
+              <div style={{ fontFamily:F.body, fontSize:11, color:C.sageDark, fontWeight:600 }}>Zone {zone || "?"} · {climBand} climate</div>
+            </div>
+          </div>
+
+          {!isPro && (
+            <div style={{ background:C.white, borderRadius:12, padding:"14px 16px", marginBottom:14, border:`1.5px solid ${C.parchment}` }}>
+              <div style={{ fontFamily:F.body, fontSize:13, color:C.brown, marginBottom:10 }}>🔒 AI Garden Advisor is a Pro feature. Get zone-specific pest alerts, harvest timing, and companion planting advice.</div>
+              <Btn small variant="primary" onClick={onUpgrade}>Upgrade to Pro</Btn>
+            </div>
+          )}
+
+          {/* Starter prompts */}
+          {msgs.length === 0 && isPro && (
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:14 }}>
+              {starters.map(s => (
+                <button key={s} onClick={() => { setInput(s); }} style={{ padding:"10px 12px", borderRadius:10, border:`1.5px solid ${C.sageLight}`, background:C.white, cursor:"pointer", fontFamily:F.body, fontSize:12, color:C.sageDark, textAlign:"left", lineHeight:1.35 }}>{s}</button>
+              ))}
+            </div>
+          )}
+
+          {/* Messages */}
+          {msgs.length > 0 && (
+            <div style={{ maxHeight:300, overflowY:"auto", marginBottom:12, display:"flex", flexDirection:"column", gap:10 }}>
+              {msgs.map((m,i) => (
+                <div key={i} style={{ alignSelf: m.role==="user" ? "flex-end" : "flex-start", maxWidth:"88%", background: m.role==="user" ? C.sage : C.white, color: m.role==="user" ? C.white : C.dark, borderRadius: m.role==="user" ? "14px 14px 4px 14px" : "14px 14px 14px 4px", padding:"10px 14px", fontFamily:F.body, fontSize:13, lineHeight:1.6, border: m.role==="assistant" ? `1px solid ${C.parchment}` : "none" }}>
+                  {m.content}
+                </div>
+              ))}
+              {loading && (
+                <div style={{ alignSelf:"flex-start", background:C.white, border:`1px solid ${C.parchment}`, borderRadius:"14px 14px 14px 4px", padding:"12px 16px", display:"flex", gap:6, alignItems:"center" }}>
+                  <span className="pp-dot-1" style={{ width:6, height:6, borderRadius:"50%", background:C.sage, display:"inline-block" }} />
+                  <span className="pp-dot-2" style={{ width:6, height:6, borderRadius:"50%", background:C.sage, display:"inline-block" }} />
+                  <span className="pp-dot-3" style={{ width:6, height:6, borderRadius:"50%", background:C.sage, display:"inline-block" }} />
+                </div>
+              )}
+              <div ref={endRef} />
+            </div>
+          )}
+
+          {/* Input */}
+          {isPro && (
+            <div style={{ display:"flex", gap:8 }}>
+              <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key==="Enter" && !e.shiftKey && send()} placeholder="Ask about your garden…" style={{ flex:1, padding:"10px 14px", borderRadius:10, border:`1.5px solid ${C.sageLight}`, fontFamily:F.body, fontSize:13, background:C.white, color:C.dark, outline:"none" }} />
+              <button onClick={send} disabled={!input.trim()||loading} style={{ padding:"10px 16px", borderRadius:10, background:C.sage, color:C.white, border:"none", cursor:input.trim()&&!loading?"pointer":"not-allowed", opacity:input.trim()&&!loading?1:0.5, fontFamily:F.body, fontWeight:700, fontSize:13 }}>Send</button>
+            </div>
+          )}
+        </Card>
+      );
+    }
+
+    // ── Garden: Main Harvest View ─────────────────────────────────────
+    function HarvestView({ garden, setGarden, zipCode, setZipCode, zone, setZone, isPro, onUpgrade, notifState }) {
+      const [showAdd, setShowAdd]     = useState(false);
+      const [loadingZip, setLoadingZip] = useState(false);
+      const [zipInput, setZipInput]   = useState(zipCode || "");
+      const [zipError, setZipError]   = useState("");
+      const [filter, setFilter]       = useState("All");
+
+      const monthTask   = getMonthlyTask(zone);
+      const frostInfo   = zone ? (FROST_DATES[zone.toLowerCase()] || {}) : {};
+      const monthName   = new Date().toLocaleString("en-US",{month:"long"});
+      const climBand    = getZoneClimBand(zone);
+      const climLabels  = { cold:"Cold", temperate:"Temperate", warm:"Warm", hot:"Hot", tropical:"Tropical" };
+
+      async function lookupZip(zip) {
+        if (!zip || zip.length < 5) return;
+        setLoadingZip(true);
+        setZipError("");
+        try {
+          const res = await fetch(`https://phzmapi.org/${zip}.json`);
+          if (!res.ok) throw new Error("Not found");
+          const data = await res.json();
+          const z = (data.zone || "").toLowerCase();
+          if (!z) throw new Error("No zone");
+          setZone(z);
+          setZipCode(zip);
+          // Schedule frost notification if permitted
+          if (notifState === "granted" && frostInfo.first && frostInfo.first !== "none") {
+            fireNotification("🍂 First Frost Approaching!", `Zone ${z}: First frost expected around ${frostInfo.first}. Bring in tender plants!`, "frost-" + zip);
+          }
+        } catch {
+          setZipError("Zip code not found. Please try again.");
+        }
+        setLoadingZip(false);
+      }
+
+      function addPlant(p) {
+        setGarden(g => [...g, p]);
+        setShowAdd(false);
+        // Harvest notification
+        if (notifState === "granted" && p.harvestDate) {
+          const d = daysUntil(p.harvestDate);
+          if (d !== null && d > 0 && d <= 90) {
+            fireNotification("🌱 " + p.name + " added to garden!", `Expected harvest in ${d} days — ${fmt(p.harvestDate)}`, "harvest-" + p.id);
+          }
+        }
+      }
+
+      function updatePlant(p) { setGarden(g => g.map(x => x.id === p.id ? p : x)); }
+      function deletePlant(id) { setGarden(g => g.filter(x => x.id !== id)); }
+
+      const types = ["All", "Vegetable", "Fruit", "Herb", "Flower", "Other"];
+      const shown = filter === "All" ? garden : garden.filter(p => p.type === filter);
+
+      const readyToHarvest = garden.filter(p => p.status === "Ready to Harvest" || (p.harvestDate && daysUntil(p.harvestDate) !== null && daysUntil(p.harvestDate) <= 7 && daysUntil(p.harvestDate) >= 0));
+
+      return (
+        <div className="pp-animate">
+          {/* Header */}
+          <div style={{ marginBottom:24 }}>
+            <h2 style={{ fontFamily:F.display, color:C.dark, fontSize:28, fontWeight:800, letterSpacing:"-0.02em", marginBottom:5 }}>Garden & Harvest.</h2>
+            <p style={{ fontFamily:F.body, fontSize:11, color:C.stone, textTransform:"uppercase", letterSpacing:"0.08em", fontWeight:600 }}>Track your plants · Get local growing advice</p>
+          </div>
+
+          {/* Zone Setup */}
+          {!zone ? (
+            <Card style={{ background:`linear-gradient(135deg, ${C.sagePale} 0%, ${C.offWhite} 100%)`, border:`1.5px solid ${C.sageLight}`, marginBottom:20 }}>
+              <div style={{ textAlign:"center", padding:"8px 0 4px" }}>
+                <div style={{ fontSize:44, marginBottom:10 }}>📍</div>
+                <div style={{ fontFamily:F.display, fontWeight:800, fontSize:20, color:C.dark, marginBottom:6 }}>What's your growing zone?</div>
+                <div style={{ fontFamily:F.body, fontSize:13, color:C.stone, marginBottom:18, lineHeight:1.6 }}>Enter your zip code and we'll find your USDA hardiness zone, frost dates, and what to plant this month.</div>
+                <div style={{ display:"flex", gap:8, maxWidth:300, margin:"0 auto" }}>
+                  <input value={zipInput} onChange={e => setZipInput(e.target.value)} onKeyDown={e => e.key==="Enter" && lookupZip(zipInput)} placeholder="Enter zip code…" maxLength={5} style={{ flex:1, padding:"11px 14px", borderRadius:10, border:`1.5px solid ${C.sageLight}`, fontFamily:F.body, fontSize:14, background:C.white, color:C.dark, outline:"none" }} />
+                  <button onClick={() => lookupZip(zipInput)} disabled={loadingZip || zipInput.length < 5} style={{ padding:"11px 18px", borderRadius:10, background:C.sage, color:C.white, border:"none", cursor:zipInput.length>=5&&!loadingZip?"pointer":"not-allowed", fontFamily:F.body, fontWeight:700, fontSize:13, opacity:zipInput.length>=5&&!loadingZip?1:0.5 }}>
+                    {loadingZip ? "…" : "Find"}
+                  </button>
+                </div>
+                {zipError && <div style={{ fontFamily:F.body, fontSize:12, color:C.terracotta, marginTop:8 }}>{zipError}</div>}
+              </div>
+            </Card>
+          ) : (
+            <>
+              {/* Zone Info Bar */}
+              <Card style={{ background:`linear-gradient(135deg, ${C.sageDark}18 0%, ${C.offWhite} 100%)`, border:`1.5px solid ${C.sageLight}`, marginBottom:16, padding:"14px 18px" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:14, flexWrap:"wrap" }}>
+                  <div style={{ flex:1 }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
+                      <div style={{ fontFamily:F.display, fontWeight:800, fontSize:20, color:C.sageDark }}>Zone {zone.toUpperCase()}</div>
+                      <div style={{ background:C.sage, color:C.white, borderRadius:100, padding:"2px 10px", fontFamily:F.body, fontSize:10, fontWeight:700 }}>{climLabels[climBand]}</div>
+                    </div>
+                    <div style={{ fontFamily:F.body, fontSize:12, color:C.stone }}>📍 Zip {zipCode} · 🌸 Last frost: {frostInfo.last || "—"} · 🍂 First frost: {frostInfo.first || "—"}</div>
+                  </div>
+                  <button onClick={() => { setZone(""); setZipCode(""); setZipInput(""); }} style={{ padding:"5px 12px", borderRadius:8, border:`1.5px solid ${C.parchment}`, background:"transparent", color:C.stone, fontFamily:F.body, fontSize:11, cursor:"pointer" }}>Change</button>
+                </div>
+              </Card>
+
+              {/* This Month Card */}
+              {monthTask && (
+                <Card style={{ background:`linear-gradient(135deg, ${C.meadow}18 0%, ${C.offWhite} 100%)`, border:`1.5px solid ${C.meadow}44`, marginBottom:16 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
+                    <div style={{ fontSize:20 }}>📅</div>
+                    <div style={{ fontFamily:F.body, fontSize:11, color:C.stone, textTransform:"uppercase", letterSpacing:"0.1em", fontWeight:700 }}>{monthName} in Zone {zone.toUpperCase()}</div>
+                  </div>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
+                    {monthTask.sow.length > 0 && (
+                      <div style={{ background:C.white, borderRadius:10, padding:"10px 12px" }}>
+                        <div style={{ fontFamily:F.body, fontSize:9, color:C.sage, textTransform:"uppercase", letterSpacing:"0.1em", fontWeight:700, marginBottom:5 }}>🌱 Sow / Plant Now</div>
+                        {monthTask.sow.slice(0,5).map((s,i) => <div key={i} style={{ fontFamily:F.body, fontSize:12, color:C.brown, lineHeight:1.8 }}>• {s}</div>)}
+                        {monthTask.sow.length > 5 && <div style={{ fontFamily:F.body, fontSize:11, color:C.stone }}>+ {monthTask.sow.length-5} more</div>}
+                      </div>
+                    )}
+                    {monthTask.harvest.length > 0 && (
+                      <div style={{ background:C.white, borderRadius:10, padding:"10px 12px" }}>
+                        <div style={{ fontFamily:F.body, fontSize:9, color:C.amber, textTransform:"uppercase", letterSpacing:"0.1em", fontWeight:700, marginBottom:5 }}>🌾 Ready to Harvest</div>
+                        {monthTask.harvest.slice(0,5).map((h,i) => <div key={i} style={{ fontFamily:F.body, fontSize:12, color:C.brown, lineHeight:1.8 }}>• {h}</div>)}
+                        {monthTask.harvest.length > 5 && <div style={{ fontFamily:F.body, fontSize:11, color:C.stone }}>+ {monthTask.harvest.length-5} more</div>}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ background:C.sagePale, borderRadius:10, padding:"10px 12px" }}>
+                    <div style={{ fontFamily:F.body, fontSize:12, color:C.sageDark, lineHeight:1.6 }}>💡 {monthTask.tip}</div>
+                  </div>
+                </Card>
+              )}
+
+              {/* Ready to Harvest Alert */}
+              {readyToHarvest.length > 0 && (
+                <div style={{ background:`linear-gradient(135deg, ${C.amber}22, ${C.wheat}18)`, border:`1.5px solid ${C.amber}55`, borderRadius:14, padding:"12px 16px", marginBottom:16, display:"flex", alignItems:"center", gap:12 }}>
+                  <div style={{ fontSize:24 }}>🌾</div>
+                  <div>
+                    <div style={{ fontFamily:F.body, fontWeight:700, color:C.brown, fontSize:13 }}>Harvest time!</div>
+                    <div style={{ fontFamily:F.body, fontSize:12, color:C.stone }}>{readyToHarvest.map(p => p.name).join(", ")} {readyToHarvest.length === 1 ? "is" : "are"} ready to harvest</div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Garden Controls */}
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14, gap:10, flexWrap:"wrap" }}>
+            <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+              {types.map(t => (
+                <button key={t} onClick={() => setFilter(t)} style={{ padding:"4px 12px", borderRadius:100, border:`1.5px solid ${filter===t ? C.sage : C.parchment}`, background:filter===t ? C.sage : "transparent", color:filter===t ? C.white : C.stone, fontFamily:F.body, fontSize:11, fontWeight:600, cursor:"pointer" }}>{t}</button>
+              ))}
+            </div>
+            <Btn small variant="sage" onClick={() => setShowAdd(true)} icon="🌱">Add Plant</Btn>
+          </div>
+
+          {/* Plant list */}
+          {shown.length === 0 ? (
+            <Card style={{ textAlign:"center", padding:"36px 20px", border:`2px dashed ${C.sageLight}`, background:"transparent" }}>
+              <div style={{ fontSize:44, marginBottom:10 }}>🌿</div>
+              <div style={{ fontFamily:F.display, fontWeight:700, fontSize:18, color:C.dark, marginBottom:6 }}>
+                {garden.length === 0 ? "Your garden awaits!" : "No plants in this category"}
+              </div>
+              <div style={{ fontFamily:F.body, fontSize:13, color:C.stone, marginBottom:16 }}>
+                {garden.length === 0 ? "Add your first plant to start tracking your harvest." : "Try selecting a different filter above."}
+              </div>
+              {garden.length === 0 && <Btn variant="sage" onClick={() => setShowAdd(true)} icon="🌱">Add First Plant</Btn>}
+            </Card>
+          ) : (
+            <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+              {shown.map(p => (
+                <PlantCard key={p.id} plant={p} onUpdate={updatePlant} onDelete={deletePlant} />
+              ))}
+            </div>
+          )}
+
+          {/* Stats row */}
+          {garden.length > 0 && (
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10, marginTop:18 }}>
+              {[
+                { label:"Total Plants",     value: garden.length,                                         icon:"🌱" },
+                { label:"Ready to Harvest", value: garden.filter(p => p.status==="Ready to Harvest").length, icon:"🌾" },
+                { label:"Harvested",        value: garden.filter(p => p.status==="Harvested").length,     icon:"✅" },
+              ].map(s => (
+                <div key={s.label} className="pp-stat" style={{ background:C.white, borderRadius:12, padding:"12px 14px", border:`1px solid ${C.parchment}`, textAlign:"center" }}>
+                  <div style={{ fontSize:22, marginBottom:4 }}>{s.icon}</div>
+                  <div style={{ fontFamily:F.display, fontWeight:800, fontSize:22, color:C.dark }}>{s.value}</div>
+                  <div style={{ fontFamily:F.body, fontSize:10, color:C.stone, textTransform:"uppercase", letterSpacing:"0.08em", fontWeight:600 }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Zip input if zone already set */}
+          {zone && (
+            <div style={{ marginTop:18 }}>
+              <GardenAIChat garden={garden} zipCode={zipCode} zone={zone} isPro={isPro} onUpgrade={onUpgrade} />
+            </div>
+          )}
+
+          {showAdd && <AddPlantModal onSave={addPlant} onClose={() => setShowAdd(false)} />}
+        </div>
+      );
+    }
+
+    // ── Root ──────────────────────────────────────────────────────────
+    function PasturePal() {
+      const [animals, setAnimals] = useState(() => {
+        try {
+          const saved = localStorage.getItem("pp_animals");
+          return saved ? JSON.parse(saved) : SEED;
+        } catch { return SEED; }
+      });
+      const [view, setView]                 = useState("herd");
+      const [selected, setSelected]         = useState(null);
+      const [showAdd, setShowAdd]           = useState(false);
+      const [showUpgrade, setShowUpgrade]   = useState(false);
+      const [showReminder, setShowReminder]         = useState(null);
+      const [showGestation, setShowGestation]       = useState(false);
+      const [showSymptomCheck, setShowSymptomCheck] = useState(false);
+      const [showDigest, setShowDigest]             = useState(false);
+      const [showAutoSchedule, setShowAutoSchedule] = useState(null); // animal object
+
+      // Garden state
+      const [garden, setGarden] = useState(() => {
+        try { const s = localStorage.getItem("pp_garden"); return s ? JSON.parse(s) : []; } catch { return []; }
+      });
+      const [zipCode, setZipCode] = useState(() => {
+        try { return localStorage.getItem("pp_zip") || ""; } catch { return ""; }
+      });
+      const [gardenZone, setGardenZone] = useState(() => {
+        try { return localStorage.getItem("pp_zone") || ""; } catch { return ""; }
+      });
+
+      const [isPro, setIsPro]               = useState(() => {
+        try { return localStorage.getItem("pp_pro") === "true"; } catch { return false; }
+      });
+      const [notifState, setNotifState]     = useState(canNotify() ? Notification.permission : "denied");
+      const [showNotifBanner, setShowNotifBanner] = useState(false);
+      const FREE_LIMIT = 10;
+
+      // Persist animals whenever they change
+      useEffect(() => {
+        try { localStorage.setItem("pp_animals", JSON.stringify(animals)); } catch {}
+      }, [animals]);
+
+      // Persist Pro status
+      useEffect(() => {
+        try { localStorage.setItem("pp_pro", String(isPro)); } catch {}
+      }, [isPro]);
+
+      // Persist garden data
+      useEffect(() => { try { localStorage.setItem("pp_garden", JSON.stringify(garden)); } catch {} }, [garden]);
+      useEffect(() => { try { localStorage.setItem("pp_zip", zipCode); } catch {} }, [zipCode]);
+      useEffect(() => { try { localStorage.setItem("pp_zone", gardenZone); } catch {} }, [gardenZone]);
+
+      // Check notification banner on mount
+      useEffect(() => {
+        if (canNotify() && Notification.permission === "default") {
+          const dismissed = localStorage.getItem("pp_notif_dismissed");
+          if (!dismissed) setShowNotifBanner(true);
+        }
+      }, []);
+
+      // Schedule notifications when animals change and permission is granted
+      useEffect(() => {
+        if (notifState === "granted") scheduleNotifications(animals);
+      }, [animals, notifState]);
+
+      const updateAnimal = a => { setAnimals(p => p.map(x => x.id === a.id ? a : x)); setSelected(a); };
+      const addAnimal    = a => { setAnimals(p => [...p, a]); setShowAdd(false); setShowAutoSchedule(a); };
+      const deleteAnimal = id => { setAnimals(p => p.filter(a => a.id !== id)); setSelected(null); };
+
+      // Handle reminder saved from dashboard quick-add
+      const handleReminderSave = (animalId, r) => {
+        setAnimals(p => p.map(a => a.id === animalId ? { ...a, reminders: [...(a.reminders || []), r] } : a));
+        setShowReminder(null);
+      };
+
+      const handleEnableNotif = async () => {
+        const granted = await requestNotifPermission();
+        setNotifState(granted ? "granted" : "denied");
+        setShowNotifBanner(false);
+        if (granted) {
+          scheduleNotifications(animals);
+          fireNotification("🐄 PasturePal Notifications Enabled!", "You'll now get reminders for upcoming animal tasks.");
+        }
+      };
+
+      const alertCount = animals.flatMap(a => [
+        ...(a.meds || []).filter(m => { const d = daysUntil(m.due); return d !== null && d <= 14 && d >= 0; }),
+        ...(a.reminders || []).filter(r => { const d = daysUntil(r.due); return d !== null && d <= 7 && d >= 0; }),
+      ]).length;
+
+      return (
+        <div style={{ minHeight: "100vh", background: C.cream }}>
+          <style>{GLOBAL_CSS}</style>
+
+          {/* ── Header ── */}
+          <header style={{ background: C.offWhite + "FA", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderBottom: `1px solid ${C.parchment}`, position: "sticky", top: 0, zIndex: 200, padding: "0 20px", overflow: "hidden" }}>
+            {/* Botanical header decoration */}
+            <div style={{ position: "absolute", right: -10, top: -18, opacity: 0.1, pointerEvents: "none", transform: "rotate(15deg)" }}>
+              <LeafCluster size={90} color={C.sage} />
+            </div>
+            <div style={{ maxWidth: 640, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: 72, position: "relative" }}>
+              {/* Wordmark */}
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 38, height: 38, borderRadius: 10, background: `linear-gradient(135deg, ${C.cream}, ${C.parchment})`, border: `1.5px solid ${C.parchment}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <svg width="26" height="24" viewBox="0 0 26 24" fill="none">
+                    <path d="M13 1.5L0.5 8.5H25.5L13 1.5Z" fill={C.brown} opacity="0.85"/>
+                    <path d="M13 1.5L0.5 8.5H25.5L13 1.5Z" stroke={C.brown} strokeWidth="1" strokeLinejoin="round"/>
+                    <line x1="13" y1="1.5" x2="13" y2="4" stroke={C.midBrown} strokeWidth="1.2" strokeLinecap="round"/>
+                    <rect x="2" y="8.5" width="22" height="14" rx="1" fill={C.brown} opacity="0.10"/>
+                    <rect x="2" y="8.5" width="22" height="14" rx="1" stroke={C.brown} strokeWidth="1.4"/>
+                    <path d="M10.5 8.5 Q13 5.5 15.5 8.5Z" fill={C.brown} opacity="0.4"/>
+                    <path d="M10 22.5 L10 16.5 Q13 13.5 16 16.5 L16 22.5" stroke={C.brown} strokeWidth="1.3" fill={C.brown} fillOpacity="0.18"/>
+                    <rect x="3.5" y="11.5" width="4.5" height="3.5" rx="0.5" fill={C.brown} opacity="0.25" stroke={C.brown} strokeWidth="1"/>
+                    <line x1="5.75" y1="11.5" x2="5.75" y2="15" stroke={C.brown} strokeWidth="0.7" opacity="0.5"/>
+                    <rect x="18" y="11.5" width="4.5" height="3.5" rx="0.5" fill={C.brown} opacity="0.25" stroke={C.brown} strokeWidth="1"/>
+                    <line x1="20.25" y1="11.5" x2="20.25" y2="15" stroke={C.brown} strokeWidth="0.7" opacity="0.5"/>
+                  </svg>
+                </div>
+                <div>
+                  <div style={{ display: "flex", alignItems: "baseline", lineHeight: 1 }}>
+                    <span style={{ fontFamily: F.display, fontSize: 22, color: C.dark, fontWeight: 800, letterSpacing: "-0.03em" }}>Pasture</span>
+                    <span style={{ fontFamily: F.display, fontSize: 22, color: C.sage, fontWeight: 800, letterSpacing: "-0.03em" }}>Pal</span>
+                  </div>
+                  <div style={{ fontFamily: F.body, fontSize: 9, color: C.pebble, letterSpacing: "0.16em", textTransform: "uppercase", fontWeight: 600, marginTop: 2 }}>Homestead Assistant</div>
+                </div>
+              </div>
+
+              {/* Right */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {/* Notification bell */}
+                {canNotify() && (
+                  <button
+                    onClick={async () => {
+                      if (notifState !== "granted") {
+                        await handleEnableNotif();
+                      } else {
+                        fireNotification("🐄 PasturePal", alertCount > 0 ? `You have ${alertCount} upcoming task${alertCount !== 1 ? "s" : ""}` : "All caught up on the homestead! 🌿");
+                      }
+                    }}
+                    title={notifState === "granted" ? "Notifications on" : "Enable notifications"}
+                    style={{ width: 36, height: 36, borderRadius: 10, background: notifState === "granted" ? C.sagePale : C.cream, border: `1.5px solid ${notifState === "granted" ? C.sageLight : C.parchment}`, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}
+                  >
+                    <span style={{ fontSize: 16 }}>🔔</span>
+                    {alertCount > 0 && notifState === "granted" && (
+                      <div style={{ position: "absolute", top: -3, right: -3, width: 16, height: 16, borderRadius: "50%", background: C.terracotta, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <span style={{ fontFamily: F.body, fontSize: 9, color: C.white, fontWeight: 700 }}>{alertCount > 9 ? "9+" : alertCount}</span>
+                      </div>
+                    )}
+                  </button>
+                )}
+
+                {isPro
+                  ? <div style={{ display: "flex", alignItems: "center", gap: 6, background: C.sagePale, border: `1.5px solid ${C.sageLight}`, borderRadius: 100, padding: "5px 12px" }}><div style={{ width: 7, height: 7, borderRadius: "50%", background: C.sage }} /><span style={{ fontFamily: F.body, fontSize: 11, color: C.sageDark, fontWeight: 700, letterSpacing: "0.06em" }}>PRO</span></div>
+                  : <Btn small variant="primary" onClick={() => setShowUpgrade(true)} style={{ borderRadius: 100, padding: "7px 18px" }}>Go Pro</Btn>
+                }
+              </div>
+            </div>
+          </header>
+
+          {/* ── Main ── */}
+          <main style={{ maxWidth: 640, margin: "0 auto", padding: "24px 20px 110px" }}>
+            {selected ? (
+              <AnimalDetail animal={selected} onUpdate={updateAnimal} onBack={() => setSelected(null)} onDelete={deleteAnimal} isPro={isPro} onUpgrade={() => setShowUpgrade(true)} />
+            ) : (
+              <>
+                {/* Notification banner */}
+                {showNotifBanner && (
+                  <NotificationBanner
+                    onEnable={handleEnableNotif}
+                    onDismiss={() => { setShowNotifBanner(false); localStorage.setItem("pp_notif_dismissed", "1"); }}
+                  />
+                )}
+
+                {/* Primary nav */}
+                <div style={{ display: "flex", background: C.white, borderRadius: 12, padding: 4, marginBottom: 28, border: `1.5px solid ${C.parchment}`, gap: 4 }}>
+                  {[["herd", "My Herd", "🐄"], ["garden", "Garden", "🌱"], ["ai", "AI Assistant", "🤖"]].map(([v, label, icon]) => (
+                    <button key={v} onClick={() => setView(v)} className="pp-tab" style={{ flex: 1, padding: "9px 8px", borderRadius: 9, border: "none", cursor: "pointer", fontFamily: F.body, fontSize: 12, fontWeight: view === v ? 700 : 500, background: view === v ? (v === "garden" ? C.sageDark : C.brown) : "transparent", color: view === v ? C.cream : C.stone, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, boxShadow: view === v ? "0 2px 8px rgba(61,43,16,0.2)" : "none" }}>
+                      <span>{icon}</span>{label}
+                    </button>
+                  ))}
+                </div>
+
+                {view === "herd" && (
+                  <div className="pp-animate">
+                    <JournalHeader
+                      isPro={isPro}
+                      animals={animals}
+                      FREE_LIMIT={FREE_LIMIT}
+                      onAdd={() => { if (!isPro && animals.length >= FREE_LIMIT) { setShowUpgrade(true); return; } setShowAdd(true); }}
+                      onUpgrade={() => setShowUpgrade(true)}
+                    />
+                    <Dashboard animals={animals} onSelect={setSelected} onUpgrade={() => setShowUpgrade(true)} isPro={isPro} onQuickReminder={(type) => setShowReminder(type)} onGestation={() => setShowGestation(true)} onSymptomCheck={() => setShowSymptomCheck(true)} onDigest={() => setShowDigest(true)} />
+                  </div>
+                )}
+
+                {view === "ai" && (
+                  <div className="pp-animate">
+                    <div style={{ marginBottom: 24 }}>
+                      <h2 style={{ fontFamily: F.display, color: C.dark, fontSize: 28, fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 5 }}>AI Assistant.</h2>
+                      <p style={{ fontFamily: F.body, fontSize: 11, color: C.stone, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600 }}>Your 24/7 homestead advisor</p>
+                    </div>
+                    <AIChat animals={animals} isPro={isPro} onUpgrade={() => setShowUpgrade(true)} />
+                  </div>
+                )}
+
+                {view === "garden" && (
+                  <HarvestView
+                    garden={garden}
+                    setGarden={setGarden}
+                    zipCode={zipCode}
+                    setZipCode={setZipCode}
+                    zone={gardenZone}
+                    setZone={setGardenZone}
+                    isPro={isPro}
+                    onUpgrade={() => setShowUpgrade(true)}
+                    notifState={notifState}
+                  />
+                )}
+              </>
+            )}
+          </main>
+
+          {/* ── Footer ── */}
+          {!selected && (
+            <footer style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: C.offWhite + "F0", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderTop: `1px solid ${C.parchment}`, padding: "10px 20px 14px", display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+              <HighlandCowLogo size={16} color={C.pebble} />
+              <span style={{ fontFamily: F.display, fontSize: 13, color: C.pebble, fontWeight: 700 }}>Pasture<span style={{ color: C.sageLight }}>Pal</span></span>
+              <span style={{ color: C.parchment, fontSize: 10 }}>·</span>
+              <span style={{ fontFamily: F.body, fontSize: 10, color: C.pebble, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 500 }}>Homestead Assistant</span>
+            </footer>
+          )}
+
+          {/* ── Modals ── */}
+          {showAdd      && <AddAnimalModal onSave={addAnimal} onClose={() => setShowAdd(false)} canAdd={isPro || animals.length < FREE_LIMIT} />}
+          {showUpgrade  && <UpgradeModal onClose={() => setShowUpgrade(false)} onUpgrade={() => setIsPro(true)} />}
+          {showGestation    && <GestationModal animals={animals} onClose={() => setShowGestation(false)} onAddReminder={(animalId, r) => { setAnimals(p => p.map(a => a.id === animalId ? { ...a, reminders: [...(a.reminders||[]), r] } : a)); }} />}
+          {showSymptomCheck && <SymptomCheckerModal animals={animals} onClose={() => setShowSymptomCheck(false)} isPro={isPro} onUpgrade={() => { setShowSymptomCheck(false); setShowUpgrade(true); }} />}
+          {showDigest       && <WeeklyDigestModal animals={animals} onClose={() => setShowDigest(false)} isPro={isPro} onUpgrade={() => { setShowDigest(false); setShowUpgrade(true); }} />}
+          {showAutoSchedule && <AutoScheduleModal animal={showAutoSchedule} onClose={() => setShowAutoSchedule(null)} onAddReminders={reminders => { setAnimals(p => p.map(a => a.id === showAutoSchedule.id ? { ...a, reminders: [...(a.reminders||[]), ...reminders] } : a)); }} />}
+          {showReminder !== null && (
+            <SmartReminderModal
+              animals={animals}
+              preType={showReminder}
+              onSave={handleReminderSave}
+              onClose={() => setShowReminder(null)}
+            />
+          )}
+        </div>
+      );
+    }
+
+    // ── Mount ─────────────────────────────────────────────────────────
+    ReactDOM.createRoot(document.getElementById("root")).render(<PasturePal />);
+  </script>
+</body>
+</html>
