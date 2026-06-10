@@ -2695,9 +2695,20 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
             onClose();
           }
         } catch(e) {
-          setError(e.message.includes("Invalid login") ? "Incorrect email or password." : e.message);
+          const msg = e?.message || String(e) || "Something went wrong. Please try again.";
+          const lower = msg.toLowerCase();
+          setError(
+            lower.includes("invalid login") || lower.includes("invalid credentials") || lower.includes("invalid email or password")
+              ? "Incorrect email or password."
+              : lower.includes("email not confirmed")
+              ? "Please confirm your email first, or check the Forgot Password link."
+              : lower.includes("user already registered")
+              ? "An account with this email already exists. Try signing in instead."
+              : msg
+          );
+        } finally {
+          setLoading(false);
         }
-        setLoading(false);
       }
 
       return (
