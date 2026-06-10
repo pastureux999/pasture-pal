@@ -1952,7 +1952,7 @@ Write in warm farm-journal style, under 220 words. Include: a greeting with toda
       );
     }
 
-    function Dashboard({ animals, onSelect, onUpgrade, isPro, onQuickReminder, onGestation, onSymptomCheck, onDigest }) {
+    function Dashboard({ animals, onSelect, onUpgrade, isPro, onQuickReminder, onGestation, onSymptomCheck, onDigest, onAdd }) {
       const allMeds = animals.flatMap(a => (a.meds || []).filter(m => { const d = daysUntil(m.due); return d !== null && d <= 30 && d >= 0; }).map(m => ({ ...m, animalName: a.name })));
       const allRem  = animals.flatMap(a => (a.reminders || []).filter(r => { const d = daysUntil(r.due); return d !== null && d <= 14 && d >= 0; }).map(r => ({ ...r, animalName: a.name })));
       const alerts  = [...allMeds.map(m => ({ text: `${m.animalName}: ${m.name}`, due: m.due, type: "med" })), ...allRem.map(r => ({ text: `${r.animalName}: ${r.text}`, due: r.due, type: r.type || "custom" }))].sort((a, b) => new Date(a.due) - new Date(b.due));
@@ -2055,6 +2055,44 @@ Write in warm farm-journal style, under 220 words. Include: a greeting with toda
           </Card>
 
           <FarmDivider label="Your Herd" />
+
+          {/* Empty state onboarding */}
+          {animals.length === 0 && (
+            <div className="pp-animate" style={{ textAlign: "center", padding: "12px 0 8px" }}>
+              {/* Welcome card */}
+              <div style={{ background: `linear-gradient(135deg, ${C.sagePale} 0%, ${C.offWhite} 100%)`, border: `2px dashed ${C.sageLight}`, borderRadius: 20, padding: "36px 28px 32px", marginBottom: 16 }}>
+                <div style={{ fontSize: 56, marginBottom: 14 }}>🐄</div>
+                <div style={{ fontFamily: F.display, fontWeight: 800, fontSize: 22, color: C.dark, marginBottom: 8 }}>
+                  Welcome to PasturePal!
+                </div>
+                <div style={{ fontFamily: F.body, fontSize: 14, color: C.stone, lineHeight: 1.7, maxWidth: 340, margin: "0 auto 24px" }}>
+                  Your homestead journal is ready. Add your first animal to get started — AI will instantly generate a care schedule for them.
+                </div>
+                <button
+                  onClick={onAdd}
+                  className="pp-btn"
+                  style={{ display: "inline-flex", alignItems: "center", gap: 8, background: C.sage, color: C.white, border: "none", borderRadius: 12, padding: "14px 28px", fontFamily: F.body, fontWeight: 700, fontSize: 15, cursor: "pointer", boxShadow: `0 4px 16px ${C.sage}55` }}
+                >
+                  🐄 Add Your First Animal
+                </button>
+              </div>
+
+              {/* Tip cards row */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 8 }}>
+                {[
+                  { icon: "💉", title: "Health Records", text: "Log meds, vaccines & treatments" },
+                  { icon: "🔔", title: "Smart Reminders", text: "Never miss a worming or hoof trim" },
+                  { icon: "🤖", title: "AI Assistant", text: "Ask anything about your animals" },
+                ].map(tip => (
+                  <div key={tip.title} style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.parchment}`, padding: "14px 10px" }}>
+                    <div style={{ fontSize: 22, marginBottom: 6 }}>{tip.icon}</div>
+                    <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 12, color: C.dark, marginBottom: 4 }}>{tip.title}</div>
+                    <div style={{ fontFamily: F.body, fontSize: 11, color: C.stone, lineHeight: 1.5 }}>{tip.text}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Animal cards */}
           {animals.map(a => {
@@ -2540,8 +2578,8 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
       const [animals, setAnimals] = useState(() => {
         try {
           const saved = localStorage.getItem("pp_animals");
-          return saved ? JSON.parse(saved) : SEED;
-        } catch { return SEED; }
+          return saved ? JSON.parse(saved) : [];
+        } catch { return []; }
       });
       const [view, setView]                 = useState("herd");
       const [selected, setSelected]         = useState(null);
@@ -2725,7 +2763,7 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
                       onAdd={() => { if (!isPro && animals.length >= FREE_LIMIT) { setShowUpgrade(true); return; } setShowAdd(true); }}
                       onUpgrade={() => setShowUpgrade(true)}
                     />
-                    <Dashboard animals={animals} onSelect={setSelected} onUpgrade={() => setShowUpgrade(true)} isPro={isPro} onQuickReminder={(type) => setShowReminder(type)} onGestation={() => setShowGestation(true)} onSymptomCheck={() => setShowSymptomCheck(true)} onDigest={() => setShowDigest(true)} />
+                    <Dashboard animals={animals} onSelect={setSelected} onUpgrade={() => setShowUpgrade(true)} isPro={isPro} onQuickReminder={(type) => setShowReminder(type)} onGestation={() => setShowGestation(true)} onSymptomCheck={() => setShowSymptomCheck(true)} onDigest={() => setShowDigest(true)} onAdd={() => { if (!isPro && animals.length >= FREE_LIMIT) { setShowUpgrade(true); return; } setShowAdd(true); }} />
                   </div>
                 )}
 
