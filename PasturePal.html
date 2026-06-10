@@ -708,6 +708,7 @@
     // ── Upgrade Modal ─────────────────────────────────────────────────
     function UpgradeModal({ onClose, onUpgrade }) {
       const [billing, setBilling] = useState("yearly");
+      const [checkoutLoading, setCheckoutLoading] = useState(false);
       const features = [
         { icon: "🐄", text: "Unlimited animals & livestock" },
         { icon: "🔔", text: "Smart reminders for every animal task" },
@@ -758,8 +759,13 @@
           </div>
 
           <Btn full variant="primary" style={{ fontSize: 14, padding: "14px 24px", borderRadius: 12 }}
-            onClick={() => { startStripeCheckout(billing === "monthly" ? STRIPE_CONFIG.monthlyPriceId : STRIPE_CONFIG.yearlyPriceId); onUpgrade(); onClose(); }}>
-            Start 14-Day Free Trial — {price} →
+            disabled={checkoutLoading}
+            onClick={async () => {
+              setCheckoutLoading(true);
+              await startStripeCheckout(billing === "monthly" ? STRIPE_CONFIG.monthlyPriceId : STRIPE_CONFIG.yearlyPriceId);
+              setCheckoutLoading(false);
+            }}>
+            {checkoutLoading ? "Redirecting to Stripe…" : `Start 14-Day Free Trial — ${price} →`}
           </Btn>
           <p style={{ fontFamily: F.body, fontSize: 11, color: C.pebble, textAlign: "center", marginTop: 12 }}>Cancel anytime · No hidden fees · Powered by Stripe</p>
         </Modal>
