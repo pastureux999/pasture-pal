@@ -411,9 +411,19 @@
       return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${d}T080000/${d}T090000&details=${detail}`;
     }
 
-    // ── AI (requires backend proxy) ───────────────────────────────────
-    async function askAI(msgs, animals) {
-      throw new Error("AI requires a backend proxy.");
+    // ── AI (backend proxy via /api/chat) ─────────────────────────────
+    async function askAI(system, messages, maxTokens = 600) {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ system, messages, maxTokens }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(err.error || "API error");
+      }
+      const data = await res.json();
+      return data.content || "";
     }
 
     // ── UI Primitives ──────────────────────────────────────────────────
@@ -1052,7 +1062,7 @@
     const QUICK_PROMPTS = ["Is this calf healthy?", "Deworming schedule?", "Signs of milk fever?", "What to plant this season?", "Hoof care tips?"];
 
     function AIChat({ animals, isPro, onUpgrade }) {
-      const [msgs, setMsgs] = useState([{ role: "assistant", content: "Howdy from PasturePal! 🐄\n\nI'm your AI homestead assistant — ask me anything about your animals, health, calving, planting, pasture management, and more.\n\n⚠️ Note: AI chat requires a backend API key to be configured." }]);
+      const [msgs, setMsgs] = useState([{ role: "assistant", content: "Howdy from PasturePal! 🐄\n\nI'm your AI homestead assistant — ask me anything about your animals, health, calving, planting, pasture management, and more." }]);
       const [input, setInput] = useState("");
       const [loading, setLoading] = useState(false);
       const bottomRef = useRef();
@@ -1064,10 +1074,11 @@
         const newMsgs = [...msgs, { role: "user", content: txt }];
         setMsgs(newMsgs); setInput(""); setLoading(true);
         try {
-          const reply = await askAI(newMsgs.map(m => ({ role: m.role, content: m.content })), animals);
+          const systemPrompt = `You are a knowledgeable homestead assistant for PasturePal. The user has ${animals.length} animal(s): ${animals.map(a => `${a.name} (${a.species})`).join(", ") || "none yet"}. Help with animal health, calving, pasture management, feeding, seasonal planning, and general homesteading advice. Be friendly, practical, and concise.`;
+          const reply = await askAI(systemPrompt, newMsgs.map(m => ({ role: m.role, content: m.content })));
           setMsgs(p => [...p, { role: "assistant", content: reply }]);
-        } catch {
-          setMsgs(p => [...p, { role: "assistant", content: "⚠️ AI requires a backend proxy with your Anthropic API key. The browser can't call the API directly for security reasons." }]);
+        } catch (err) {
+          setMsgs(p => [...p, { role: "assistant", content: `⚠️ Something went wrong: ${err.message}` }]);
         }
         setLoading(false);
       };
@@ -1417,30 +1428,27 @@
     const AI_BACKEND_NOTE = "Backend API key needed";
 
     async function callAI(system, userContent, maxTokens = 1000) {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: maxTokens, system, messages: [{ role: "user", content: userContent }] })
+        body: JSON.stringify({ system, messages: [{ role: "user", content: userContent }], maxTokens })
       });
       if (!res.ok) throw new Error("API error");
       const data = await res.json();
-      if (data.error) throw new Error(data.error.message);
-      return data.content?.map(b => b.text || "").join("") || "";
+      if (data.error) throw new Error(data.error);
+      return data.content || "";
     }
 
     async function callAIWithImage(system, text, base64) {
-      const content = [
-        { type: "image", source: { type: "base64", media_type: "image/jpeg", data: base64 } },
-        { type: "text", text }
-      ];
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      // Image analysis routed through proxy with text description fallback
+      const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 600, system, messages: [{ role: "user", content }] })
+        body: JSON.stringify({ system, messages: [{ role: "user", content: text }], maxTokens: 600 })
       });
       if (!res.ok) throw new Error("API error");
       const data = await res.json();
-      return data.content?.map(b => b.text || "").join("") || "";
+      return data.content || "";
     }
 
     function ProGate({ title, icon, description, onUpgrade, onClose }) {
