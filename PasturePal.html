@@ -2553,6 +2553,9 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
                 </div>
               </Card>
 
+              {/* Weather Widget */}
+              {zipCode && zipCode.length >= 5 && <WeatherWidget zipCode={zipCode} />}
+
               {/* This Month Card */}
               {monthTask && (
                 <Card style={{ background:`linear-gradient(135deg, ${C.meadow}18 0%, ${C.offWhite} 100%)`, border:`1.5px solid ${C.meadow}44`, marginBottom:16 }}>
@@ -2654,6 +2657,563 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
       );
     }
 
+    // ── Farm: Constants ──────────────────────────────────────────────
+    const PRODUCTION_TYPES = [
+      { key:"eggs",    label:"Eggs",    emoji:"🥚", unit:"eggs",    color:C.wheat    },
+      { key:"milk",    label:"Milk",    emoji:"🥛", unit:"gallons", color:C.sky      },
+      { key:"honey",   label:"Honey",   emoji:"🍯", unit:"lbs",     color:C.amber    },
+      { key:"wool",    label:"Wool",    emoji:"🧶", unit:"lbs",     color:C.lavender },
+      { key:"produce", label:"Produce", emoji:"🥬", unit:"lbs",     color:C.meadow   },
+      { key:"other",   label:"Other",   emoji:"📦", unit:"units",   color:C.stone    },
+    ];
+    const FINANCE_CATS = {
+      income:  [
+        { key:"sales",        label:"Animal Sales",   emoji:"🐄" },
+        { key:"produce_sale", label:"Produce / Eggs", emoji:"🥚" },
+        { key:"grants",       label:"Grants",         emoji:"🏛️" },
+        { key:"other_in",     label:"Other Income",   emoji:"💵" },
+      ],
+      expense: [
+        { key:"feed",      label:"Feed & Hay",     emoji:"🌾" },
+        { key:"vet",       label:"Vet & Medical",  emoji:"💉" },
+        { key:"equipment", label:"Equipment",      emoji:"🔧" },
+        { key:"seeds",     label:"Seeds & Plants", emoji:"🌱" },
+        { key:"labor",     label:"Labor",          emoji:"👷" },
+        { key:"utilities", label:"Utilities",      emoji:"⚡" },
+        { key:"other_ex",  label:"Other Expense",  emoji:"📋" },
+      ],
+    };
+    const WX_CODE = c => {
+      if (c===0)    return { icon:"☀️",  label:"Clear"        };
+      if (c<=3)     return { icon:"⛅",  label:"Partly cloudy"};
+      if (c<=48)    return { icon:"🌫️", label:"Fog"          };
+      if (c<=67)    return { icon:"🌧️", label:"Rain"         };
+      if (c<=77)    return { icon:"❄️",  label:"Snow"         };
+      if (c<=82)    return { icon:"🌦️", label:"Showers"      };
+      return               { icon:"⛈️",  label:"Thunderstorm" };
+    };
+
+    // ── Weather Widget ─────────────────────────────────────────────────
+    function WeatherWidget({ zipCode }) {
+      const [wx, setWx]           = useState(null);
+      const [loading, setLoading] = useState(false);
+      const cacheKey = `pp_wx_${zipCode}`;
+
+      useEffect(() => {
+        if (!zipCode || zipCode.length < 5) return;
+        const cached = (() => { try { const c = localStorage.getItem(cacheKey); if (c) { const p = JSON.parse(c); if (Date.now() - p.ts < 3600000) return p.data; } } catch {} return null; })();
+        if (cached) { setWx(cached); return; }
+        setLoading(true);
+        (async () => {
+          try {
+            const geo = await fetch(`https://nominatim.openstreetmap.org/search?postalcode=${zipCode}&countrycodes=US&format=json&limit=1`).then(r=>r.json());
+            if (!geo?.[0]) return;
+            const {lat,lon} = geo[0];
+            const data = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode&temperature_unit=fahrenheit&precipitation_unit=inch&timezone=auto&forecast_days=5`).then(r=>r.json());
+            localStorage.setItem(cacheKey, JSON.stringify({ ts:Date.now(), data:data.daily }));
+            setWx(data.daily);
+          } catch {}
+          setLoading(false);
+        })();
+      }, [zipCode]);
+
+      if (!zipCode || zipCode.length < 5 || loading || !wx) return null;
+
+      const todayStr = new Date().toISOString().split("T")[0];
+      const days = wx.time.slice(0,5).map((d,i) => ({
+        date:d, max:Math.round(wx.temperature_2m_max[i]),
+        min:Math.round(wx.temperature_2m_min[i]),
+        precip:wx.precipitation_sum[i], code:wx.weathercode[i],
+      }));
+      const frostDays  = days.filter(d => d.min <= 32);
+      const heavyRain  = days.filter(d => d.precip > 0.5);
+      const dayLabel   = d => { const date=new Date(d+"T12:00:00"); const diff=Math.round((date-new Date(todayStr+"T12:00:00"))/86400000); if(diff===0)return"Today"; if(diff===1)return"Tmrw"; return date.toLocaleDateString("en-US",{weekday:"short"}); };
+
+      return (
+        <Card style={{ marginBottom:16, background:`linear-gradient(135deg,#EAF0FA 0%,${C.offWhite} 100%)`, border:"1.5px solid #C8D8E8" }}>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+            <div style={{ fontFamily:F.display, fontWeight:800, fontSize:15, color:C.dark }}>🌤️ 5-Day Forecast</div>
+            <div style={{ fontFamily:F.body, fontSize:10, color:C.stone, textTransform:"uppercase", letterSpacing:"0.08em" }}>ZIP {zipCode}</div>
+          </div>
+          {frostDays.length > 0 && (
+            <div style={{ background:"#EBF4FF", border:"1.5px solid #A8C8E8", borderRadius:9, padding:"8px 12px", marginBottom:8, fontFamily:F.body, fontSize:12, color:"#2E6098" }}>
+              ❄️ <b>Frost warning</b> — lows ≤32°F on {frostDays.map(d=>dayLabel(d.date)).join(", ")}. Protect plants & check water.
+            </div>
+          )}
+          {heavyRain.length > 0 && (
+            <div style={{ background:"#F0F8EE", border:"1.5px solid #A8C8A0", borderRadius:9, padding:"8px 12px", marginBottom:8, fontFamily:F.body, fontSize:12, color:"#2E6030" }}>
+              🌧️ <b>Heavy rain</b> expected {heavyRain.map(d=>dayLabel(d.date)).join(", ")}. Check drainage & shelter.
+            </div>
+          )}
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:5 }}>
+            {days.map((d,i) => {
+              const w=WX_CODE(d.code), frost=d.min<=32;
+              return (
+                <div key={i} style={{ textAlign:"center", background:frost?"#EBF4FF":C.white, borderRadius:9, padding:"8px 3px", border:`1.5px solid ${frost?"#A8C8E8":C.parchment}` }}>
+                  <div style={{ fontFamily:F.body, fontSize:10, color:C.stone, fontWeight:600, marginBottom:3 }}>{dayLabel(d.date)}</div>
+                  <div style={{ fontSize:18, marginBottom:3 }}>{w.icon}</div>
+                  <div style={{ fontFamily:F.body, fontSize:11, fontWeight:700, color:C.dark }}>{d.max}°</div>
+                  <div style={{ fontFamily:F.body, fontSize:10, color:frost?"#2E6098":C.stone }}>{d.min}°{frost?"❄️":""}</div>
+                  {d.precip>0.1 && <div style={{ fontFamily:F.body, fontSize:9, color:C.sky, marginTop:1 }}>💧{d.precip.toFixed(1)}"</div>}
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      );
+    }
+
+    // ── Farm: Production Log ──────────────────────────────────────────
+    function AddProductionModal({ onSave, onClose, animals }) {
+      const [type, setType]         = useState("eggs");
+      const [qty, setQty]           = useState("");
+      const [date, setDate]         = useState(new Date().toISOString().split("T")[0]);
+      const [animalId, setAnimalId] = useState("");
+      const [notes, setNotes]       = useState("");
+      const pt = PRODUCTION_TYPES.find(t=>t.key===type);
+      return (
+        <Modal onClose={onClose}>
+          <h3 style={{ fontFamily:F.display, fontSize:22, fontWeight:800, color:C.dark, marginBottom:16 }}>Log Production</h3>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:7, marginBottom:16 }}>
+            {PRODUCTION_TYPES.map(t=>(
+              <button key={t.key} onClick={()=>setType(t.key)} style={{ padding:"10px 4px", borderRadius:10, border:`2px solid ${type===t.key?t.color:C.parchment}`, background:type===t.key?t.color+"22":C.white, cursor:"pointer", fontFamily:F.body, fontSize:11, fontWeight:type===t.key?700:500, color:type===t.key?t.color:C.stone, display:"flex", flexDirection:"column", alignItems:"center", gap:3 }}>
+                <span style={{ fontSize:18 }}>{t.emoji}</span>{t.label}
+              </button>
+            ))}
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
+            <div>
+              <label style={{ fontFamily:F.body, fontSize:11, color:C.stone, fontWeight:600, display:"block", marginBottom:4 }}>QTY ({pt?.unit})</label>
+              <input type="number" min="0" step="0.1" value={qty} onChange={e=>setQty(e.target.value)} style={{ width:"100%", padding:"9px 12px", borderRadius:9, border:`1.5px solid ${C.parchment}`, fontFamily:F.body, fontSize:14, background:C.white }} />
+            </div>
+            <div>
+              <label style={{ fontFamily:F.body, fontSize:11, color:C.stone, fontWeight:600, display:"block", marginBottom:4 }}>DATE</label>
+              <input type="date" value={date} onChange={e=>setDate(e.target.value)} style={{ width:"100%", padding:"9px 12px", borderRadius:9, border:`1.5px solid ${C.parchment}`, fontFamily:F.body, fontSize:14, background:C.white }} />
+            </div>
+          </div>
+          {animals.length>0 && (
+            <div style={{ marginBottom:10 }}>
+              <label style={{ fontFamily:F.body, fontSize:11, color:C.stone, fontWeight:600, display:"block", marginBottom:4 }}>ANIMAL (optional)</label>
+              <select value={animalId} onChange={e=>setAnimalId(e.target.value)} style={{ width:"100%", padding:"9px 12px", borderRadius:9, border:`1.5px solid ${C.parchment}`, fontFamily:F.body, fontSize:14, background:C.white }}>
+                <option value="">All / Flock</option>
+                {animals.map(a=><option key={a.id} value={a.id}>{a.emoji} {a.name}</option>)}
+              </select>
+            </div>
+          )}
+          <div style={{ marginBottom:16 }}>
+            <label style={{ fontFamily:F.body, fontSize:11, color:C.stone, fontWeight:600, display:"block", marginBottom:4 }}>NOTES</label>
+            <input value={notes} onChange={e=>setNotes(e.target.value)} style={{ width:"100%", padding:"9px 12px", borderRadius:9, border:`1.5px solid ${C.parchment}`, fontFamily:F.body, fontSize:14, background:C.white }} placeholder="Optional notes…" />
+          </div>
+          <div style={{ display:"flex", gap:10 }}>
+            <Btn variant="ghost" full onClick={onClose}>Cancel</Btn>
+            <Btn variant="primary" full disabled={!qty||!date} onClick={()=>{ if(!qty||!date) return; onSave({id:uid(),type,qty:parseFloat(qty),unit:pt?.unit,date,animalId,notes}); onClose(); }}>Log It</Btn>
+          </div>
+        </Modal>
+      );
+    }
+
+    function ProductionLogView({ production, setProduction, animals }) {
+      const [showAdd, setShowAdd] = useState(false);
+      const [filter, setFilter]   = useState("all");
+      const now = new Date();
+      const thirtyAgo = new Date(now-30*86400000).toISOString().split("T")[0];
+      const recent    = production.filter(p=>p.date>=thirtyAgo);
+      const filtered  = filter==="all" ? production : production.filter(p=>p.type===filter);
+      const days7     = Array.from({length:7},(_,i)=>{ const d=new Date(now-i*86400000); return d.toISOString().split("T")[0]; }).reverse();
+      const dayTotals = days7.map(d=>({ date:d, total:filtered.filter(p=>p.date===d).reduce((s,p)=>s+p.qty,0) }));
+      const maxTotal  = Math.max(...dayTotals.map(d=>d.total),1);
+      const typeSummary = PRODUCTION_TYPES.map(t=>({ ...t, total:recent.filter(p=>p.type===t.key).reduce((s,p)=>s+p.qty,0), count:recent.filter(p=>p.type===t.key).length })).filter(t=>t.count>0);
+      const sorted    = [...filtered].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,30);
+      return (
+        <div>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:18 }}>
+            <div>
+              <h2 style={{ fontFamily:F.display, fontSize:22, fontWeight:800, color:C.dark }}>Production Log</h2>
+              <p style={{ fontFamily:F.body, fontSize:11, color:C.stone, textTransform:"uppercase", letterSpacing:"0.08em", fontWeight:600 }}>Track yields & harvests</p>
+            </div>
+            <Btn small variant="primary" onClick={()=>setShowAdd(true)} icon="+">Log</Btn>
+          </div>
+          {typeSummary.length>0 && (
+            <div style={{ display:"flex", gap:7, flexWrap:"wrap", marginBottom:14 }}>
+              {typeSummary.map(t=>(
+                <div key={t.key} style={{ background:t.color+"22", border:`1.5px solid ${t.color}55`, borderRadius:100, padding:"4px 12px", display:"flex", alignItems:"center", gap:5 }}>
+                  <span style={{ fontSize:13 }}>{t.emoji}</span>
+                  <span style={{ fontFamily:F.body, fontSize:11, fontWeight:700, color:t.color }}>{t.total%1===0?t.total:t.total.toFixed(1)} {t.unit}</span>
+                  <span style={{ fontFamily:F.body, fontSize:9, color:C.stone }}>30d</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {filtered.length>0 && (
+            <Card style={{ marginBottom:14 }}>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+                <div style={{ fontFamily:F.body, fontSize:12, fontWeight:700, color:C.brown }}>7-Day Chart</div>
+                <select value={filter} onChange={e=>setFilter(e.target.value)} style={{ padding:"3px 8px", borderRadius:6, border:`1.5px solid ${C.parchment}`, fontFamily:F.body, fontSize:11, background:C.white }}>
+                  <option value="all">All types</option>
+                  {PRODUCTION_TYPES.map(t=><option key={t.key} value={t.key}>{t.emoji} {t.label}</option>)}
+                </select>
+              </div>
+              <div style={{ display:"flex", alignItems:"flex-end", gap:5, height:72 }}>
+                {dayTotals.map((d,i)=>{ const pct=maxTotal>0?(d.total/maxTotal)*100:0; const isToday=d.date===now.toISOString().split("T")[0]; return (
+                  <div key={i} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
+                    <div style={{ width:"100%", background:isToday?C.sage:C.sageLight, borderRadius:"3px 3px 0 0", height:`${Math.max(pct,d.total>0?4:0)}%`, transition:"height 0.3s" }} />
+                    <div style={{ fontFamily:F.body, fontSize:9, color:C.stone }}>{new Date(d.date+"T12:00:00").toLocaleDateString("en-US",{weekday:"narrow"})}</div>
+                  </div>
+                );})}
+              </div>
+            </Card>
+          )}
+          {sorted.length===0 ? (
+            <Card style={{ textAlign:"center", padding:"32px 20px" }}>
+              <div style={{ fontSize:36, marginBottom:10 }}>🥚</div>
+              <div style={{ fontFamily:F.display, fontSize:18, fontWeight:700, color:C.dark, marginBottom:6 }}>Start tracking yields</div>
+              <div style={{ fontFamily:F.body, fontSize:13, color:C.stone, marginBottom:16 }}>Log eggs, milk, honey, and more to see trends over time.</div>
+              <Btn small variant="primary" onClick={()=>setShowAdd(true)}>Log First Entry</Btn>
+            </Card>
+          ) : (
+            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+              {sorted.map(p=>{ const pt=PRODUCTION_TYPES.find(t=>t.key===p.type)||PRODUCTION_TYPES[5]; const animal=animals.find(a=>a.id===p.animalId); return (
+                <Card key={p.id} style={{ padding:"11px 14px" }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                    <div style={{ width:38,height:38,borderRadius:9,background:pt.color+"22",border:`1.5px solid ${pt.color}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0 }}>{pt.emoji}</div>
+                    <div style={{ flex:1,minWidth:0 }}>
+                      <div style={{ fontFamily:F.body,fontWeight:700,fontSize:14,color:C.dark }}>{p.qty%1===0?p.qty:p.qty.toFixed(1)} {p.unit}</div>
+                      <div style={{ fontFamily:F.body,fontSize:11,color:C.stone }}>{pt.label}{animal?` · ${animal.emoji} ${animal.name}`:""} · {fmt(p.date)}</div>
+                      {p.notes&&<div style={{ fontFamily:F.body,fontSize:11,color:C.stone,fontStyle:"italic",marginTop:1 }}>📝 {p.notes}</div>}
+                    </div>
+                    <button onClick={()=>setProduction(pr=>pr.filter(x=>x.id!==p.id))} style={{ background:"none",border:"none",cursor:"pointer",fontSize:15,color:C.pebble,padding:4 }}>✕</button>
+                  </div>
+                </Card>
+              );})}
+            </div>
+          )}
+          {showAdd && <AddProductionModal animals={animals} onClose={()=>setShowAdd(false)} onSave={p=>setProduction(pr=>[p,...pr])} />}
+        </div>
+      );
+    }
+
+    // ── Farm: Finances ────────────────────────────────────────────────
+    function AddTransactionModal({ onSave, onClose, animals }) {
+      const [txType, setTxType]     = useState("expense");
+      const [cat, setCat]           = useState("feed");
+      const [amount, setAmount]     = useState("");
+      const [desc, setDesc]         = useState("");
+      const [date, setDate]         = useState(new Date().toISOString().split("T")[0]);
+      const [animalId, setAnimalId] = useState("");
+      const cats = FINANCE_CATS[txType];
+      return (
+        <Modal onClose={onClose}>
+          <h3 style={{ fontFamily:F.display, fontSize:22, fontWeight:800, color:C.dark, marginBottom:14 }}>Add Transaction</h3>
+          <div style={{ display:"flex", background:C.cream, borderRadius:10, padding:3, marginBottom:14, gap:3 }}>
+            {[["expense","🔴 Expense"],["income","🟢 Income"]].map(([v,l])=>(
+              <button key={v} onClick={()=>{setTxType(v);setCat(FINANCE_CATS[v][0].key);}} style={{ flex:1,padding:"8px",borderRadius:8,border:"none",cursor:"pointer",fontFamily:F.body,fontSize:12,fontWeight:txType===v?700:500,background:txType===v?C.white:"transparent",color:txType===v?C.dark:C.stone }}>{l}</button>
+            ))}
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:7, marginBottom:12 }}>
+            {cats.map(c=>(
+              <button key={c.key} onClick={()=>setCat(c.key)} style={{ padding:"7px 8px",borderRadius:9,border:`1.5px solid ${cat===c.key?(txType==="expense"?C.terracotta:C.sage):C.parchment}`,background:cat===c.key?(txType==="expense"?C.terracotta+"22":C.sage+"22"):C.white,cursor:"pointer",fontFamily:F.body,fontSize:11,fontWeight:cat===c.key?700:500,color:cat===c.key?(txType==="expense"?C.terracotta:C.sageDark):C.stone,textAlign:"left",display:"flex",alignItems:"center",gap:6 }}>
+                <span>{c.emoji}</span>{c.label}
+              </button>
+            ))}
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
+            <div>
+              <label style={{ fontFamily:F.body,fontSize:11,color:C.stone,fontWeight:600,display:"block",marginBottom:4 }}>AMOUNT ($)</label>
+              <input type="number" min="0" step="0.01" value={amount} onChange={e=>setAmount(e.target.value)} style={{ width:"100%",padding:"9px 12px",borderRadius:9,border:`1.5px solid ${C.parchment}`,fontFamily:F.body,fontSize:14,background:C.white }} placeholder="0.00" />
+            </div>
+            <div>
+              <label style={{ fontFamily:F.body,fontSize:11,color:C.stone,fontWeight:600,display:"block",marginBottom:4 }}>DATE</label>
+              <input type="date" value={date} onChange={e=>setDate(e.target.value)} style={{ width:"100%",padding:"9px 12px",borderRadius:9,border:`1.5px solid ${C.parchment}`,fontFamily:F.body,fontSize:14,background:C.white }} />
+            </div>
+          </div>
+          <div style={{ marginBottom:10 }}>
+            <label style={{ fontFamily:F.body,fontSize:11,color:C.stone,fontWeight:600,display:"block",marginBottom:4 }}>DESCRIPTION</label>
+            <input value={desc} onChange={e=>setDesc(e.target.value)} style={{ width:"100%",padding:"9px 12px",borderRadius:9,border:`1.5px solid ${C.parchment}`,fontFamily:F.body,fontSize:14,background:C.white }} placeholder="e.g. 50 bales hay from Johnson Farm" />
+          </div>
+          {animals.length>0 && (
+            <div style={{ marginBottom:12 }}>
+              <label style={{ fontFamily:F.body,fontSize:11,color:C.stone,fontWeight:600,display:"block",marginBottom:4 }}>ANIMAL (optional)</label>
+              <select value={animalId} onChange={e=>setAnimalId(e.target.value)} style={{ width:"100%",padding:"9px 12px",borderRadius:9,border:`1.5px solid ${C.parchment}`,fontFamily:F.body,fontSize:14,background:C.white }}>
+                <option value="">General / All</option>
+                {animals.map(a=><option key={a.id} value={a.id}>{a.emoji} {a.name}</option>)}
+              </select>
+            </div>
+          )}
+          <div style={{ display:"flex", gap:10 }}>
+            <Btn variant="ghost" full onClick={onClose}>Cancel</Btn>
+            <Btn variant="primary" full disabled={!amount||!date} onClick={()=>{ if(!amount||!date) return; onSave({id:uid(),type:txType,cat,amount:parseFloat(amount),desc,date,animalId}); onClose(); }}>Add</Btn>
+          </div>
+        </Modal>
+      );
+    }
+
+    function FarmFinancesView({ finances, setFinances, animals }) {
+      const [showAdd, setShowAdd] = useState(false);
+      const now = new Date();
+      const thisMonth = now.toISOString().slice(0,7);
+      const mIncome  = finances.filter(f=>f.type==="income"  && f.date.startsWith(thisMonth)).reduce((s,f)=>s+f.amount,0);
+      const mExpense = finances.filter(f=>f.type==="expense" && f.date.startsWith(thisMonth)).reduce((s,f)=>s+f.amount,0);
+      const mNet     = mIncome - mExpense;
+      const allCats  = [...FINANCE_CATS.income,...FINANCE_CATS.expense];
+      const expByCat = FINANCE_CATS.expense.map(c=>({...c,total:finances.filter(f=>f.cat===c.key).reduce((s,f)=>s+f.amount,0)})).filter(c=>c.total>0).sort((a,b)=>b.total-a.total);
+      const maxCat   = expByCat[0]?.total||1;
+      const sorted   = [...finances].sort((a,b)=>b.date.localeCompare(a.date));
+      return (
+        <div>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:18 }}>
+            <div>
+              <h2 style={{ fontFamily:F.display, fontSize:22, fontWeight:800, color:C.dark }}>Farm Finances</h2>
+              <p style={{ fontFamily:F.body, fontSize:11, color:C.stone, textTransform:"uppercase", letterSpacing:"0.08em", fontWeight:600 }}>Income & expenses</p>
+            </div>
+            <Btn small variant="primary" onClick={()=>setShowAdd(true)} icon="+">Add</Btn>
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, marginBottom:14 }}>
+            {[{label:"Income",value:mIncome,color:C.sage},{label:"Expenses",value:mExpense,color:C.terracotta},{label:"Net",value:mNet,color:mNet>=0?C.sage:C.terracotta}].map(s=>(
+              <Card key={s.label} style={{ padding:"12px 8px", textAlign:"center" }}>
+                <div style={{ fontFamily:F.body,fontSize:9,color:C.stone,textTransform:"uppercase",letterSpacing:"0.06em",fontWeight:600,marginBottom:3 }}>{s.label}</div>
+                <div style={{ fontFamily:F.display,fontSize:16,fontWeight:800,color:s.color }}>{mNet<0&&s.label==="Net"?"-":""}${Math.abs(s.value).toFixed(0)}</div>
+                <div style={{ fontFamily:F.body,fontSize:9,color:C.pebble }}>this month</div>
+              </Card>
+            ))}
+          </div>
+          {expByCat.length>0 && (
+            <Card style={{ marginBottom:14 }}>
+              <div style={{ fontFamily:F.body,fontSize:12,fontWeight:700,color:C.brown,marginBottom:10 }}>Top Expenses (all time)</div>
+              <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
+                {expByCat.slice(0,5).map(c=>(
+                  <div key={c.key} style={{ display:"flex",alignItems:"center",gap:10 }}>
+                    <div style={{ width:22,fontFamily:F.body,fontSize:13,textAlign:"center" }}>{c.emoji}</div>
+                    <div style={{ flex:1 }}>
+                      <div style={{ display:"flex",justifyContent:"space-between",marginBottom:2 }}>
+                        <span style={{ fontFamily:F.body,fontSize:11,color:C.brown }}>{c.label}</span>
+                        <span style={{ fontFamily:F.body,fontSize:11,fontWeight:700,color:C.dark }}>${c.total.toFixed(0)}</span>
+                      </div>
+                      <div style={{ height:4,background:C.parchment,borderRadius:2,overflow:"hidden" }}>
+                        <div style={{ height:"100%",width:`${(c.total/maxCat)*100}%`,background:C.terracotta,borderRadius:2 }} />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+          {sorted.length===0 ? (
+            <Card style={{ textAlign:"center",padding:"32px 20px" }}>
+              <div style={{ fontSize:36,marginBottom:10 }}>💰</div>
+              <div style={{ fontFamily:F.display,fontSize:18,fontWeight:700,color:C.dark,marginBottom:6 }}>Track farm finances</div>
+              <div style={{ fontFamily:F.body,fontSize:13,color:C.stone,marginBottom:16 }}>Log income and expenses to see where your money goes.</div>
+              <Btn small variant="primary" onClick={()=>setShowAdd(true)}>Add First Entry</Btn>
+            </Card>
+          ) : (
+            <div style={{ display:"flex",flexDirection:"column",gap:8 }}>
+              {sorted.slice(0,40).map(f=>{ const cat=allCats.find(c=>c.key===f.cat)||{emoji:"📋",label:"Other"}; const animal=animals.find(a=>a.id===f.animalId); const isInc=f.type==="income"; return (
+                <Card key={f.id} style={{ padding:"11px 14px" }}>
+                  <div style={{ display:"flex",alignItems:"center",gap:10 }}>
+                    <div style={{ width:36,height:36,borderRadius:9,background:(isInc?C.sage:C.terracotta)+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0 }}>{cat.emoji}</div>
+                    <div style={{ flex:1,minWidth:0 }}>
+                      <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between" }}>
+                        <div style={{ fontFamily:F.body,fontWeight:700,fontSize:13,color:C.dark,flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{f.desc||cat.label}</div>
+                        <div style={{ fontFamily:F.display,fontWeight:800,fontSize:14,color:isInc?C.sage:C.terracotta,marginLeft:8,flexShrink:0 }}>{isInc?"+":"-"}${f.amount.toFixed(2)}</div>
+                      </div>
+                      <div style={{ fontFamily:F.body,fontSize:11,color:C.stone }}>{cat.label}{animal?` · ${animal.emoji} ${animal.name}`:""} · {fmt(f.date)}</div>
+                    </div>
+                    <button onClick={()=>setFinances(fs=>fs.filter(x=>x.id!==f.id))} style={{ background:"none",border:"none",cursor:"pointer",fontSize:15,color:C.pebble,padding:4 }}>✕</button>
+                  </div>
+                </Card>
+              );})}
+            </div>
+          )}
+          {showAdd && <AddTransactionModal animals={animals} onClose={()=>setShowAdd(false)} onSave={f=>setFinances(fs=>[f,...fs])} />}
+        </div>
+      );
+    }
+
+    // ── Farm: Pasture Rotation ─────────────────────────────────────────
+    function AddPastureModal({ onSave, onClose }) {
+      const [name,setName]   = useState("");
+      const [acres,setAcres] = useState("");
+      const [notes,setNotes] = useState("");
+      return (
+        <Modal onClose={onClose}>
+          <h3 style={{ fontFamily:F.display,fontSize:22,fontWeight:800,color:C.dark,marginBottom:18 }}>Add Pasture</h3>
+          <div style={{ marginBottom:10 }}>
+            <label style={{ fontFamily:F.body,fontSize:11,color:C.stone,fontWeight:600,display:"block",marginBottom:4 }}>PASTURE NAME</label>
+            <input value={name} onChange={e=>setName(e.target.value)} style={{ width:"100%",padding:"9px 12px",borderRadius:9,border:`1.5px solid ${C.parchment}`,fontFamily:F.body,fontSize:14,background:C.white }} placeholder="e.g. North Field, Back 40" />
+          </div>
+          <div style={{ marginBottom:10 }}>
+            <label style={{ fontFamily:F.body,fontSize:11,color:C.stone,fontWeight:600,display:"block",marginBottom:4 }}>ACRES (optional)</label>
+            <input type="number" min="0" step="0.1" value={acres} onChange={e=>setAcres(e.target.value)} style={{ width:"100%",padding:"9px 12px",borderRadius:9,border:`1.5px solid ${C.parchment}`,fontFamily:F.body,fontSize:14,background:C.white }} placeholder="e.g. 5.5" />
+          </div>
+          <div style={{ marginBottom:16 }}>
+            <label style={{ fontFamily:F.body,fontSize:11,color:C.stone,fontWeight:600,display:"block",marginBottom:4 }}>NOTES</label>
+            <input value={notes} onChange={e=>setNotes(e.target.value)} style={{ width:"100%",padding:"9px 12px",borderRadius:9,border:`1.5px solid ${C.parchment}`,fontFamily:F.body,fontSize:14,background:C.white }} placeholder="Water sources, fencing, soil notes…" />
+          </div>
+          <div style={{ display:"flex",gap:10 }}>
+            <Btn variant="ghost" full onClick={onClose}>Cancel</Btn>
+            <Btn variant="primary" full disabled={!name} onClick={()=>{ if(!name) return; onSave({id:uid(),name,acres:acres?parseFloat(acres):null,notes,createdAt:new Date().toISOString().split("T")[0]}); onClose(); }}>Add Pasture</Btn>
+          </div>
+        </Modal>
+      );
+    }
+
+    function MoveAnimalModal({ pastures, animals, onSave, onClose }) {
+      const [pastureId, setPastureId]       = useState(pastures[0]?.id||"");
+      const [selectedAnimals, setSelected]  = useState([]);
+      const [date, setDate]                 = useState(new Date().toISOString().split("T")[0]);
+      const [notes, setNotes]               = useState("");
+      const toggle = id => setSelected(s => s.includes(id) ? s.filter(x=>x!==id) : [...s,id]);
+      return (
+        <Modal onClose={onClose}>
+          <h3 style={{ fontFamily:F.display,fontSize:22,fontWeight:800,color:C.dark,marginBottom:16 }}>Move Animals</h3>
+          <div style={{ marginBottom:10 }}>
+            <label style={{ fontFamily:F.body,fontSize:11,color:C.stone,fontWeight:600,display:"block",marginBottom:4 }}>MOVE TO PASTURE</label>
+            <select value={pastureId} onChange={e=>setPastureId(e.target.value)} style={{ width:"100%",padding:"9px 12px",borderRadius:9,border:`1.5px solid ${C.parchment}`,fontFamily:F.body,fontSize:14,background:C.white }}>
+              {pastures.map(p=><option key={p.id} value={p.id}>{p.name}{p.acres?` (${p.acres} ac)`:""}</option>)}
+            </select>
+          </div>
+          <div style={{ marginBottom:10 }}>
+            <label style={{ fontFamily:F.body,fontSize:11,color:C.stone,fontWeight:600,display:"block",marginBottom:6 }}>SELECT ANIMALS</label>
+            <div style={{ display:"flex",flexDirection:"column",gap:5,maxHeight:150,overflowY:"auto" }}>
+              {animals.map(a=>(
+                <button key={a.id} onClick={()=>toggle(a.id)} style={{ display:"flex",alignItems:"center",gap:10,padding:"8px 12px",borderRadius:9,border:`1.5px solid ${selectedAnimals.includes(a.id)?C.sage:C.parchment}`,background:selectedAnimals.includes(a.id)?C.sagePale:C.white,cursor:"pointer",textAlign:"left" }}>
+                  <span style={{ fontSize:16 }}>{a.emoji}</span>
+                  <span style={{ fontFamily:F.body,fontSize:13,color:C.dark,fontWeight:selectedAnimals.includes(a.id)?700:400 }}>{a.name}</span>
+                  {selectedAnimals.includes(a.id)&&<span style={{ marginLeft:"auto",color:C.sage,fontWeight:700 }}>✓</span>}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12 }}>
+            <div>
+              <label style={{ fontFamily:F.body,fontSize:11,color:C.stone,fontWeight:600,display:"block",marginBottom:4 }}>DATE</label>
+              <input type="date" value={date} onChange={e=>setDate(e.target.value)} style={{ width:"100%",padding:"9px 12px",borderRadius:9,border:`1.5px solid ${C.parchment}`,fontFamily:F.body,fontSize:14,background:C.white }} />
+            </div>
+            <div>
+              <label style={{ fontFamily:F.body,fontSize:11,color:C.stone,fontWeight:600,display:"block",marginBottom:4 }}>NOTES</label>
+              <input value={notes} onChange={e=>setNotes(e.target.value)} style={{ width:"100%",padding:"9px 12px",borderRadius:9,border:`1.5px solid ${C.parchment}`,fontFamily:F.body,fontSize:14,background:C.white }} placeholder="Optional" />
+            </div>
+          </div>
+          <div style={{ display:"flex",gap:10 }}>
+            <Btn variant="ghost" full onClick={onClose}>Cancel</Btn>
+            <Btn variant="primary" full disabled={!pastureId||selectedAnimals.length===0} onClick={()=>{ if(!pastureId||selectedAnimals.length===0) return; onSave({id:uid(),pastureId,animalIds:selectedAnimals,date,notes}); onClose(); }}>Move Animals</Btn>
+          </div>
+        </Modal>
+      );
+    }
+
+    function PastureRotationView({ pastures, setPastures, rotations, setRotations, animals }) {
+      const [showAdd, setShowAdd]   = useState(false);
+      const [showMove, setShowMove] = useState(false);
+      const today = new Date().toISOString().split("T")[0];
+      const pastureStatus = pastures.map(p => {
+        const moves = rotations.filter(r=>r.pastureId===p.id).sort((a,b)=>b.date.localeCompare(a.date));
+        const last  = moves[0];
+        const daysAgo = last ? Math.floor((new Date(today)-new Date(last.date))/86400000) : null;
+        const currentAnimals = last ? last.animalIds.map(id=>animals.find(a=>a.id===id)).filter(Boolean) : [];
+        return { ...p, last, daysAgo, currentAnimals, isEmpty:currentAnimals.length===0 };
+      });
+      const recentMoves = [...rotations].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,20);
+      return (
+        <div>
+          <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:18 }}>
+            <div>
+              <h2 style={{ fontFamily:F.display,fontSize:22,fontWeight:800,color:C.dark }}>Pasture Rotation</h2>
+              <p style={{ fontFamily:F.body,fontSize:11,color:C.stone,textTransform:"uppercase",letterSpacing:"0.08em",fontWeight:600 }}>Regenerative grazing tracker</p>
+            </div>
+            <div style={{ display:"flex",gap:7 }}>
+              {animals.length>0&&pastures.length>0&&<Btn small variant="sage" onClick={()=>setShowMove(true)}>Move</Btn>}
+              <Btn small variant="primary" onClick={()=>setShowAdd(true)} icon="+">Pasture</Btn>
+            </div>
+          </div>
+          {pastures.length===0 ? (
+            <Card style={{ textAlign:"center",padding:"32px 20px" }}>
+              <div style={{ fontSize:36,marginBottom:10 }}>🌿</div>
+              <div style={{ fontFamily:F.display,fontSize:18,fontWeight:700,color:C.dark,marginBottom:6 }}>Set up your pastures</div>
+              <div style={{ fontFamily:F.body,fontSize:13,color:C.stone,marginBottom:16 }}>Add pasture sections to track rotation and rest days.</div>
+              <Btn small variant="primary" onClick={()=>setShowAdd(true)}>Add First Pasture</Btn>
+            </Card>
+          ) : (
+            <div style={{ display:"flex",flexDirection:"column",gap:8,marginBottom:14 }}>
+              {pastureStatus.map(p=>{
+                const restColor = p.isEmpty&&p.daysAgo!==null ? (p.daysAgo>=30?C.sage:p.daysAgo>=14?C.wheat:C.terracotta) : C.sky;
+                return (
+                  <Card key={p.id}>
+                    <div style={{ display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:10 }}>
+                      <div style={{ flex:1 }}>
+                        <div style={{ display:"flex",alignItems:"center",gap:7,marginBottom:5 }}>
+                          <div style={{ fontFamily:F.display,fontWeight:700,fontSize:15,color:C.dark }}>{p.name}</div>
+                          {p.acres&&<div style={{ fontFamily:F.body,fontSize:10,color:C.stone,background:C.cream,borderRadius:100,padding:"2px 7px" }}>{p.acres} ac</div>}
+                        </div>
+                        {p.currentAnimals.length>0 ? (
+                          <div style={{ display:"flex",flexWrap:"wrap",gap:5,marginBottom:4 }}>
+                            {p.currentAnimals.map(a=>(
+                              <div key={a.id} style={{ background:C.sagePale,border:`1.5px solid ${C.sageLight}`,borderRadius:100,padding:"2px 9px",fontFamily:F.body,fontSize:11,color:C.sageDark,fontWeight:600 }}>{a.emoji} {a.name}</div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div style={{ fontFamily:F.body,fontSize:12,color:C.stone,marginBottom:3 }}>🌿 Resting</div>
+                        )}
+                        {p.daysAgo!==null&&(
+                          <div style={{ fontFamily:F.body,fontSize:11,color:C.stone }}>
+                            {p.currentAnimals.length>0?`In pasture ${p.daysAgo}d`:`Resting ${p.daysAgo}d`}
+                            {p.isEmpty&&p.daysAgo<21&&<span style={{ color:C.terracotta,marginLeft:6 }}>⚠ Keep resting (21d+ ideal)</span>}
+                            {p.isEmpty&&p.daysAgo>=21&&<span style={{ color:C.sage,marginLeft:6 }}>✓ Ready to graze</span>}
+                          </div>
+                        )}
+                        {p.notes&&<div style={{ fontFamily:F.body,fontSize:11,color:C.stone,fontStyle:"italic",marginTop:3 }}>📝 {p.notes}</div>}
+                      </div>
+                      <div style={{ display:"flex",flexDirection:"column",alignItems:"flex-end",gap:5 }}>
+                        {p.daysAgo!==null&&<div style={{ background:restColor+"22",border:`1.5px solid ${restColor}44`,borderRadius:9,padding:"3px 9px",fontFamily:F.body,fontSize:12,fontWeight:700,color:restColor }}>{p.daysAgo}d</div>}
+                        <button onClick={()=>setPastures(ps=>ps.filter(x=>x.id!==p.id))} style={{ background:"none",border:"none",cursor:"pointer",fontSize:14,color:C.pebble,padding:2 }}>✕</button>
+                      </div>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+          {recentMoves.length>0&&(
+            <Card>
+              <div style={{ fontFamily:F.body,fontSize:12,fontWeight:700,color:C.brown,marginBottom:10 }}>Move History</div>
+              <div style={{ display:"flex",flexDirection:"column",gap:7 }}>
+                {recentMoves.slice(0,8).map(r=>{ const pasture=pastures.find(p=>p.id===r.pastureId); const moved=r.animalIds.map(id=>animals.find(a=>a.id===id)).filter(Boolean); return (
+                  <div key={r.id} style={{ display:"flex",alignItems:"center",gap:10,paddingBottom:7,borderBottom:`1px solid ${C.parchment}` }}>
+                    <div style={{ fontFamily:F.body,fontSize:11,color:C.stone,width:56,flexShrink:0 }}>{fmt(r.date)}</div>
+                    <div style={{ flex:1 }}>
+                      <span style={{ fontFamily:F.body,fontSize:12,color:C.dark,fontWeight:600 }}>→ {pasture?.name||"Unknown"}</span>
+                      <div style={{ fontFamily:F.body,fontSize:11,color:C.stone }}>{moved.map(a=>`${a.emoji} ${a.name}`).join(", ")||"Animals"}</div>
+                    </div>
+                  </div>
+                );})}
+              </div>
+            </Card>
+          )}
+          {showAdd&&<AddPastureModal onClose={()=>setShowAdd(false)} onSave={p=>setPastures(ps=>[...ps,p])} />}
+          {showMove&&<MoveAnimalModal pastures={pastures} animals={animals} onClose={()=>setShowMove(false)} onSave={r=>setRotations(rs=>[r,...rs])} />}
+        </div>
+      );
+    }
+
+    // ── Farm: Main Tab ────────────────────────────────────────────────
+    function FarmView({ production, setProduction, finances, setFinances, pastures, setPastures, rotations, setRotations, animals, zipCode }) {
+      const [subTab, setSubTab] = useState("production");
+      return (
+        <div className="pp-animate">
+          <div style={{ display:"flex",background:C.white,borderRadius:12,padding:4,marginBottom:22,border:`1.5px solid ${C.parchment}`,gap:4 }}>
+            {[["production","📊 Yields"],["finances","💰 Finances"],["pastures","🌿 Pastures"]].map(([v,l])=>(
+              <button key={v} onClick={()=>setSubTab(v)} className="pp-tab" style={{ flex:1,padding:"9px 5px",borderRadius:9,border:"none",cursor:"pointer",fontFamily:F.body,fontSize:11,fontWeight:subTab===v?700:500,background:subTab===v?C.brown:"transparent",color:subTab===v?C.cream:C.stone,display:"flex",alignItems:"center",justifyContent:"center" }}>
+                {l}
+              </button>
+            ))}
+          </div>
+          {zipCode&&zipCode.length>=5&&<WeatherWidget zipCode={zipCode} />}
+          {subTab==="production"&&<ProductionLogView production={production} setProduction={setProduction} animals={animals} />}
+          {subTab==="finances"  &&<FarmFinancesView  finances={finances}   setFinances={setFinances}   animals={animals} />}
+          {subTab==="pastures"  &&<PastureRotationView pastures={pastures} setPastures={setPastures} rotations={rotations} setRotations={setRotations} animals={animals} />}
+        </div>
+      );
+    }
+
     // ── Root ──────────────────────────────────────────────────────────
     function PasturePal() {
       const [animals, setAnimals] = useState(() => {
@@ -2683,6 +3243,20 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
         try { return localStorage.getItem("pp_zone") || ""; } catch { return ""; }
       });
 
+      // Farm state
+      const [production, setProduction] = useState(() => {
+        try { const s = localStorage.getItem("pp_prod"); return s ? JSON.parse(s) : []; } catch { return []; }
+      });
+      const [finances, setFinances] = useState(() => {
+        try { const s = localStorage.getItem("pp_fin"); return s ? JSON.parse(s) : []; } catch { return []; }
+      });
+      const [pastures, setPastures] = useState(() => {
+        try { const s = localStorage.getItem("pp_past"); return s ? JSON.parse(s) : []; } catch { return []; }
+      });
+      const [rotations, setRotations] = useState(() => {
+        try { const s = localStorage.getItem("pp_rot"); return s ? JSON.parse(s) : []; } catch { return []; }
+      });
+
       const [isPro, setIsPro]               = useState(() => {
         try { return localStorage.getItem("pp_pro") === "true"; } catch { return false; }
       });
@@ -2704,6 +3278,12 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
       useEffect(() => { try { localStorage.setItem("pp_garden", JSON.stringify(garden)); } catch {} }, [garden]);
       useEffect(() => { try { localStorage.setItem("pp_zip", zipCode); } catch {} }, [zipCode]);
       useEffect(() => { try { localStorage.setItem("pp_zone", gardenZone); } catch {} }, [gardenZone]);
+
+      // Persist farm data
+      useEffect(() => { try { localStorage.setItem("pp_prod", JSON.stringify(production)); } catch {} }, [production]);
+      useEffect(() => { try { localStorage.setItem("pp_fin", JSON.stringify(finances)); } catch {} }, [finances]);
+      useEffect(() => { try { localStorage.setItem("pp_past", JSON.stringify(pastures)); } catch {} }, [pastures]);
+      useEffect(() => { try { localStorage.setItem("pp_rot", JSON.stringify(rotations)); } catch {} }, [rotations]);
 
       // Check notification banner on mount
       useEffect(() => {
@@ -2840,7 +3420,7 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
 
                 {/* Primary nav */}
                 <div style={{ display: "flex", background: C.white, borderRadius: 12, padding: 4, marginBottom: 28, border: `1.5px solid ${C.parchment}`, gap: 4 }}>
-                  {[["herd", "My Herd", "🐄"], ["garden", "Garden", "🌱"], ["ai", "AI Assistant", "🤖"]].map(([v, label, icon]) => (
+                  {[["herd", "My Herd", "🐄"], ["garden", "Garden", "🌱"], ["farm", "Farm", "🏡"], ["ai", "AI", "🤖"]].map(([v, label, icon]) => (
                     <button key={v} onClick={() => setView(v)} className="pp-tab" style={{ flex: 1, padding: "9px 8px", borderRadius: 9, border: "none", cursor: "pointer", fontFamily: F.body, fontSize: 12, fontWeight: view === v ? 700 : 500, background: view === v ? (v === "garden" ? C.sageDark : C.brown) : "transparent", color: view === v ? C.cream : C.stone, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, boxShadow: view === v ? "0 2px 8px rgba(61,43,16,0.2)" : "none" }}>
                       <span className="pp-tab-emoji">{icon}</span>
                       <span className="pp-tab-label">{icon} {label}</span>
@@ -2882,6 +3462,17 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
                     isPro={isPro}
                     onUpgrade={() => setShowUpgrade(true)}
                     notifState={notifState}
+                  />
+                )}
+
+                {view === "farm" && (
+                  <FarmView
+                    production={production} setProduction={setProduction}
+                    finances={finances}     setFinances={setFinances}
+                    pastures={pastures}     setPastures={setPastures}
+                    rotations={rotations}   setRotations={setRotations}
+                    animals={animals}
+                    zipCode={zipCode}
                   />
                 )}
               </>
