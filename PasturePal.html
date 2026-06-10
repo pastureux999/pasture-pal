@@ -1142,8 +1142,11 @@
     // ── AI Chat ───────────────────────────────────────────────────────
     const QUICK_PROMPTS = ["Is this calf healthy?", "Deworming schedule?", "Signs of milk fever?", "What to plant this season?", "Hoof care tips?"];
 
-    function AIChat({ animals, isPro, onUpgrade }) {
-      const [msgs, setMsgs] = useState([{ role: "assistant", content: "Howdy from PasturePal! 🐄\n\nI'm your AI homestead assistant — ask me anything about your animals, health, calving, planting, pasture management, and more." }]);
+    function AIChat({ animals, isPro, onUpgrade, farmProfile, zipCode }) {
+      const greeting = farmProfile?.name
+        ? `Howdy from ${farmProfile.name}! 🐄\n\nI'm your AI homestead assistant — ask me anything about your animals, health, calving, planting, pasture management, and more.`
+        : "Howdy from PasturePal! 🐄\n\nI'm your AI homestead assistant — ask me anything about your animals, health, calving, planting, pasture management, and more.";
+      const [msgs, setMsgs] = useState([{ role: "assistant", content: greeting }]);
       const [input, setInput] = useState("");
       const [loading, setLoading] = useState(false);
       const bottomRef = useRef();
@@ -1155,7 +1158,12 @@
         const newMsgs = [...msgs, { role: "user", content: txt }];
         setMsgs(newMsgs); setInput(""); setLoading(true);
         try {
-          const systemPrompt = `You are a knowledgeable homestead assistant for PasturePal. The user has ${animals.length} animal(s): ${animals.map(a => `${a.name} (${a.species})`).join(", ") || "none yet"}. Help with animal health, calving, pasture management, feeding, seasonal planning, and general homesteading advice. Be friendly, practical, and concise.`;
+          const farmCtx = [
+            farmProfile?.name ? `Farm name: ${farmProfile.name}` : null,
+            farmProfile?.type ? `Farm type: ${farmProfile.type}` : null,
+            zipCode           ? `Location zip: ${zipCode}`       : null,
+          ].filter(Boolean).join(", ");
+          const systemPrompt = `You are a knowledgeable homestead assistant for PasturePal.${farmCtx ? ` The user's farm: ${farmCtx}.` : ""} They have ${animals.length} animal(s): ${animals.map(a => `${a.name} (${a.species})`).join(", ") || "none yet"}. Help with animal health, calving, pasture management, feeding, seasonal planning, and general homesteading advice. Tailor advice to their farm type and location when relevant. Be friendly, practical, and concise.`;
           const reply = await askAI(systemPrompt, newMsgs.map(m => ({ role: m.role, content: m.content })));
           setMsgs(p => [...p, { role: "assistant", content: reply }]);
         } catch (err) {
@@ -3300,8 +3308,75 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
       );
     }
 
+    // ── Farm: Profile Card ─────────────────────────────────────────────
+    const FARM_TYPES = ["Homestead","Hobby Farm","Small Ranch","Market Garden","Backyard Flock","Mixed Farm"];
+
+    function FarmProfileCard({ farmProfile, setFarmProfile, zipCode, setZipCode }) {
+      const [editing, setEditing] = useState(!farmProfile.name);
+      const [draft, setDraft]     = useState({ name: farmProfile.name, type: farmProfile.type, zip: zipCode });
+
+      function save() {
+        setFarmProfile({ name: draft.name.trim(), type: draft.type });
+        if (draft.zip && draft.zip.length === 5) setZipCode(draft.zip);
+        setEditing(false);
+      }
+
+      if (editing) return (
+        <Card style={{ marginBottom:16 }}>
+          <div style={{ fontFamily:F.display, fontWeight:800, fontSize:16, color:C.dark, marginBottom:14 }}>🏡 My Farm Profile</div>
+          <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+            <div>
+              <label style={{ fontFamily:F.body, fontSize:11, fontWeight:600, color:C.stone, display:"block", marginBottom:4 }}>FARM NAME</label>
+              <input value={draft.name} onChange={e=>setDraft(p=>({...p,name:e.target.value}))} placeholder="e.g. Sunny Acres Farm" style={{ width:"100%",padding:"9px 13px",borderRadius:8,border:`1.5px solid ${C.parchment}`,fontFamily:F.body,fontSize:14,background:C.white,outline:"none" }} />
+            </div>
+            <div>
+              <label style={{ fontFamily:F.body, fontSize:11, fontWeight:600, color:C.stone, display:"block", marginBottom:4 }}>FARM TYPE</label>
+              <select value={draft.type} onChange={e=>setDraft(p=>({...p,type:e.target.value}))} style={{ width:"100%",padding:"9px 13px",borderRadius:8,border:`1.5px solid ${C.parchment}`,fontFamily:F.body,fontSize:14,background:C.white,outline:"none" }}>
+                <option value="">Select type…</option>
+                {FARM_TYPES.map(t=><option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ fontFamily:F.body, fontSize:11, fontWeight:600, color:C.stone, display:"block", marginBottom:4 }}>ZIP CODE</label>
+              <input value={draft.zip} onChange={e=>setDraft(p=>({...p,zip:e.target.value.replace(/\D/g,"").slice(0,5)}))} placeholder="e.g. 90210" maxLength={5} style={{ width:"100%",padding:"9px 13px",borderRadius:8,border:`1.5px solid ${C.parchment}`,fontFamily:F.body,fontSize:14,background:C.white,outline:"none" }} />
+              <div style={{ fontFamily:F.body, fontSize:11, color:C.stone, marginTop:3 }}>Used for weather alerts and AI location context</div>
+            </div>
+            <div style={{ display:"flex", gap:8, marginTop:4 }}>
+              {farmProfile.name && <Btn variant="ghost" full onClick={()=>setEditing(false)}>Cancel</Btn>}
+              <Btn variant="primary" full onClick={save}>Save Profile</Btn>
+            </div>
+          </div>
+        </Card>
+      );
+
+      return (
+        <Card style={{ marginBottom:16, background:`linear-gradient(135deg,${C.sagePale} 0%,${C.offWhite} 100%)`, border:`1.5px solid ${C.sageLight}` }}>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+              <div style={{ fontSize:32 }}>🏡</div>
+              <div>
+                <div style={{ fontFamily:F.display, fontWeight:800, fontSize:18, color:C.dark }}>{farmProfile.name || "My Farm"}</div>
+                <div style={{ display:"flex", gap:6, marginTop:4, flexWrap:"wrap", alignItems:"center" }}>
+                  {farmProfile.type && (
+                    <span style={{ fontFamily:F.body, fontSize:11, fontWeight:700, color:C.sageDark, background:C.sageLight+"55", border:`1px solid ${C.sageLight}`, borderRadius:100, padding:"2px 9px" }}>{farmProfile.type}</span>
+                  )}
+                  {zipCode && (
+                    <span style={{ fontFamily:F.body, fontSize:11, color:C.stone }}>📍 {zipCode}</span>
+                  )}
+                  {!farmProfile.type && !zipCode && (
+                    <span style={{ fontFamily:F.body, fontSize:12, color:C.pebble }}>Tap Edit to add your farm details</span>
+                  )}
+                </div>
+              </div>
+            </div>
+            <button onClick={()=>{ setDraft({ name:farmProfile.name, type:farmProfile.type, zip:zipCode }); setEditing(true); }} style={{ padding:"6px 14px", borderRadius:8, border:`1.5px solid ${C.parchment}`, background:"transparent", color:C.stone, fontFamily:F.body, fontSize:12, cursor:"pointer", fontWeight:600 }}>Edit</button>
+          </div>
+        </Card>
+      );
+    }
+
     // ── Farm: Main Tab ────────────────────────────────────────────────
-    function FarmView({ production, setProduction, finances, setFinances, pastures, setPastures, rotations, setRotations, animals, zipCode }) {
+    function FarmView({ production, setProduction, finances, setFinances, pastures, setPastures, rotations, setRotations, animals, zipCode, setZipCode, farmProfile, setFarmProfile }) {
       const [subTab, setSubTab] = useState("production");
       return (
         <div className="pp-animate">
@@ -3312,6 +3387,7 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
               </button>
             ))}
           </div>
+          <FarmProfileCard farmProfile={farmProfile} setFarmProfile={setFarmProfile} zipCode={zipCode} setZipCode={setZipCode} />
           {zipCode&&zipCode.length>=5&&<WeatherWidget zipCode={zipCode} />}
           {subTab==="production"&&<ProductionLogView production={production} setProduction={setProduction} animals={animals} />}
           {subTab==="finances"  &&<FarmFinancesView  finances={finances}   setFinances={setFinances}   animals={animals} />}
@@ -3347,6 +3423,11 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
       });
       const [gardenZone, setGardenZone] = useState(() => {
         try { return localStorage.getItem("pp_zone") || ""; } catch { return ""; }
+      });
+
+      // Farm profile state
+      const [farmProfile, setFarmProfile] = useState(() => {
+        try { const s = localStorage.getItem("pp_farm_profile"); return s ? JSON.parse(s) : { name: "", type: "" }; } catch { return { name: "", type: "" }; }
       });
 
       // Farm state
@@ -3392,6 +3473,9 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
       useEffect(() => { try { localStorage.setItem("pp_zip", zipCode); } catch {} }, [zipCode]);
       useEffect(() => { try { localStorage.setItem("pp_zone", gardenZone); } catch {} }, [gardenZone]);
 
+      // Persist farm profile
+      useEffect(() => { try { localStorage.setItem("pp_farm_profile", JSON.stringify(farmProfile)); } catch {} }, [farmProfile]);
+
       // Persist farm data
       useEffect(() => { try { localStorage.setItem("pp_prod", JSON.stringify(production)); } catch {} }, [production]);
       useEffect(() => { try { localStorage.setItem("pp_fin", JSON.stringify(finances)); } catch {} }, [finances]);
@@ -3434,8 +3518,9 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
               if (d.production !== undefined) setProduction(d.production);
               if (d.finances   !== undefined) setFinances(d.finances);
               if (d.pastures   !== undefined) setPastures(d.pastures);
-              if (d.rotations  !== undefined) setRotations(d.rotations);
-              if (d.isPro      !== undefined) setIsPro(d.isPro);
+              if (d.rotations   !== undefined) setRotations(d.rotations);
+              if (d.isPro       !== undefined) setIsPro(d.isPro);
+              if (d.farmProfile !== undefined) setFarmProfile(d.farmProfile);
               localStorage.setItem("pp_last_sync", serverTs.toString());
             }
           }
@@ -3456,7 +3541,7 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
           try {
             await supabase.from("pp_user_data").upsert({
               user_id: user.id,
-              data: { animals, garden, zipCode, gardenZone, production, finances, pastures, rotations, isPro },
+              data: { animals, garden, zipCode, gardenZone, production, finances, pastures, rotations, isPro, farmProfile },
               updated_at: new Date().toISOString(),
             }, { onConflict: "user_id" });
             localStorage.setItem("pp_last_sync", Date.now().toString());
@@ -3466,7 +3551,7 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
           }
         }, 2500);
         return () => { if (syncTimerRef.current) clearTimeout(syncTimerRef.current); };
-      }, [user, animals, garden, zipCode, gardenZone, production, finances, pastures, rotations, isPro]);
+      }, [user, animals, garden, zipCode, gardenZone, production, finances, pastures, rotations, isPro, farmProfile]);
 
       // Check notification banner on mount
       useEffect(() => {
@@ -3539,7 +3624,9 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
                     <span style={{ fontFamily: F.display, fontSize: 22, color: C.dark, fontWeight: 800, letterSpacing: "-0.03em" }}>Pasture</span>
                     <span style={{ fontFamily: F.display, fontSize: 22, color: C.sage, fontWeight: 800, letterSpacing: "-0.03em" }}>Pal</span>
                   </div>
-                  <div style={{ fontFamily: F.body, fontSize: 9, color: C.pebble, letterSpacing: "0.16em", textTransform: "uppercase", fontWeight: 600, marginTop: 2 }}>Homestead Assistant</div>
+                  <div style={{ fontFamily: F.body, fontSize: 9, color: C.pebble, letterSpacing: "0.16em", textTransform: "uppercase", fontWeight: 600, marginTop: 2 }}>
+                    {farmProfile?.name || "Homestead Assistant"}
+                  </div>
                 </div>
               </a>
 
@@ -3663,7 +3750,7 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
                       <h2 style={{ fontFamily: F.display, color: C.dark, fontSize: 28, fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 5 }}>AI Assistant.</h2>
                       <p style={{ fontFamily: F.body, fontSize: 11, color: C.stone, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600 }}>Your 24/7 homestead advisor</p>
                     </div>
-                    <AIChat animals={animals} isPro={isPro} onUpgrade={() => setShowUpgrade(true)} />
+                    <AIChat animals={animals} isPro={isPro} onUpgrade={() => setShowUpgrade(true)} farmProfile={farmProfile} zipCode={zipCode} />
                   </div>
                 )}
 
@@ -3688,7 +3775,8 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
                     pastures={pastures}     setPastures={setPastures}
                     rotations={rotations}   setRotations={setRotations}
                     animals={animals}
-                    zipCode={zipCode}
+                    zipCode={zipCode}       setZipCode={setZipCode}
+                    farmProfile={farmProfile} setFarmProfile={setFarmProfile}
                   />
                 )}
               </>
