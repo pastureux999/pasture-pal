@@ -2,8 +2,17 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>PasturePal — Your Homestead Assistant</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#4D7057" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="PasturePal" />
+  <link rel="apple-touch-icon" href="/icons/icon-180.png" />
+
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,800;1,400&family=Jost:wght@400;500;600;700&family=DM+Mono&display=swap" rel="stylesheet" />
@@ -131,6 +140,42 @@
         50%       { transform: rotate(4deg); }
       }
       .pp-leaf { animation: leafSway 5s ease-in-out infinite; transform-origin: bottom center; }
+
+      /* ── Mobile ── */
+      @media (max-width: 480px) {
+        /* Larger touch targets */
+        .pp-btn { min-height: 44px; }
+        .pp-tab { min-height: 44px !important; }
+
+        /* Safe area for iPhone notch/home bar */
+        .pp-safe-bottom {
+          padding-bottom: calc(14px + env(safe-area-inset-bottom)) !important;
+        }
+        .pp-safe-top {
+          padding-top: env(safe-area-inset-top);
+        }
+
+        /* Tighter modal on small screens */
+        .pp-modal {
+          padding: 20px 18px 18px !important;
+          border-radius: 16px !important;
+          max-height: 96vh !important;
+        }
+
+        /* Tab label — hide text on very small, show emoji only */
+        .pp-tab-label { display: none; }
+        .pp-tab-emoji { font-size: 20px !important; }
+      }
+
+      @media (min-width: 481px) {
+        .pp-tab-emoji { display: none; }
+      }
+
+      /* Smooth tap highlight removal */
+      button, a { -webkit-tap-highlight-color: transparent; }
+
+      /* Prevent text resize on rotate */
+      html { -webkit-text-size-adjust: 100%; }
 
       @keyframes statIn {
         from { opacity: 0; transform: translateY(10px) scale(0.95); }
@@ -2763,7 +2808,7 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
           </header>
 
           {/* ── Main ── */}
-          <main style={{ maxWidth: 640, margin: "0 auto", padding: "24px 20px 110px" }}>
+          <main style={{ maxWidth: 640, margin: "0 auto", padding: "24px 20px calc(110px + env(safe-area-inset-bottom))" }}>
             {selected ? (
               <AnimalDetail animal={selected} onUpdate={updateAnimal} onBack={() => setSelected(null)} onDelete={deleteAnimal} isPro={isPro} onUpgrade={() => setShowUpgrade(true)} />
             ) : (
@@ -2780,7 +2825,8 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
                 <div style={{ display: "flex", background: C.white, borderRadius: 12, padding: 4, marginBottom: 28, border: `1.5px solid ${C.parchment}`, gap: 4 }}>
                   {[["herd", "My Herd", "🐄"], ["garden", "Garden", "🌱"], ["ai", "AI Assistant", "🤖"]].map(([v, label, icon]) => (
                     <button key={v} onClick={() => setView(v)} className="pp-tab" style={{ flex: 1, padding: "9px 8px", borderRadius: 9, border: "none", cursor: "pointer", fontFamily: F.body, fontSize: 12, fontWeight: view === v ? 700 : 500, background: view === v ? (v === "garden" ? C.sageDark : C.brown) : "transparent", color: view === v ? C.cream : C.stone, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, boxShadow: view === v ? "0 2px 8px rgba(61,43,16,0.2)" : "none" }}>
-                      <span>{icon}</span>{label}
+                      <span className="pp-tab-emoji">{icon}</span>
+                      <span className="pp-tab-label">{icon} {label}</span>
                     </button>
                   ))}
                 </div>
@@ -2827,7 +2873,7 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
 
           {/* ── Footer ── */}
           {!selected && (
-            <footer style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: C.offWhite + "F0", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderTop: `1px solid ${C.parchment}`, padding: "10px 20px 14px", display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+            <footer style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: C.offWhite + "F0", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderTop: `1px solid ${C.parchment}`, padding: `10px 20px calc(14px + env(safe-area-inset-bottom))`, display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
               <HighlandCowLogo size={16} color={C.pebble} />
               <span style={{ fontFamily: F.display, fontSize: 13, color: C.pebble, fontWeight: 700 }}>Pasture<span style={{ color: C.sageLight }}>Pal</span></span>
               <span style={{ color: C.parchment, fontSize: 10 }}>·</span>

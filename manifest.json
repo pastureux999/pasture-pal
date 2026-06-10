@@ -1,0 +1,24 @@
+{
+  "name": "PasturePal — Homestead Assistant",
+  "short_name": "PasturePal",
+  "description": "Your AI-powered homestead and livestock management app",
+  "start_url": "/PasturePal.html",
+  "display": "standalone",
+  "background_color": "#F7F0DC",
+  "theme_color": "#4D7057",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
