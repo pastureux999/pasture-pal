@@ -238,10 +238,30 @@
         photos: [] },
     ];
 
-    const STRIPE_CONFIG = { monthlyAmount: 6, yearlyAmount: 49, monthlyPriceId: "price_MONTHLY", yearlyPriceId: "price_YEARLY" };
+    const STRIPE_CONFIG = { monthlyAmount: 6, yearlyAmount: 49, monthlyPriceId: "price_1TgbPhA1qD7H4yH8CScfQUoL", yearlyPriceId: "price_1TgbPhA1qD7H4yH8tJclqkKk" };
 
-    function startStripeCheckout(priceId) {
-      alert("Stripe Integration\n\nTo go live:\n1. Add your Stripe publishable key\n2. Create /api/create-checkout-session\n3. Redirect to Stripe Checkout\n\nPrice ID: " + priceId);
+    async function startStripeCheckout(priceId) {
+      try {
+        const res = await fetch("/api/create-checkout-session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ priceId }),
+        });
+        const data = await res.json();
+        if (data.url) {
+          window.location.href = data.url;
+        } else {
+          alert("Checkout error: " + (data.error || "Unknown error"));
+        }
+      } catch (err) {
+        alert("Checkout error: " + err.message);
+      }
+    }
+
+    // Handle ?pro=1 redirect back from Stripe success
+    if (new URLSearchParams(window.location.search).get("pro") === "1") {
+      try { localStorage.setItem("pp_pro", "true"); } catch {}
+      window.history.replaceState({}, "", window.location.pathname);
     }
 
     // ── Garden / Harvest Constants ────────────────────────────────────
@@ -418,11 +438,8 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ system, messages, maxTokens }),
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: res.statusText }));
-        throw new Error(err.error || "API error");
-      }
-      const data = await res.json();
+      const data = await res.json().catch(() => ({ error: res.statusText }));
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
       return data.content || "";
     }
 
