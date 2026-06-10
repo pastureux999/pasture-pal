@@ -3553,6 +3553,30 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
         return () => { if (syncTimerRef.current) clearTimeout(syncTimerRef.current); };
       }, [user, animals, garden, zipCode, gardenZone, production, finances, pastures, rotations, isPro, farmProfile]);
 
+      // Verify Stripe subscription status on mount (checks at most every 4 hours)
+      useEffect(() => {
+        if (!isPro) return;
+        const sessionId = localStorage.getItem("pp_stripe_session");
+        if (!sessionId) return;
+        const lastCheck = parseInt(localStorage.getItem("pp_sub_check") || "0");
+        if (Date.now() - lastCheck < 4 * 60 * 60 * 1000) return; // skip if checked recently
+        fetch("/api/verify-subscription", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId }),
+        })
+          .then(r => r.json())
+          .then(d => {
+            localStorage.setItem("pp_sub_check", Date.now().toString());
+            if (!d.isActive) {
+              setIsPro(false);
+              localStorage.removeItem("pp_stripe_session");
+              localStorage.setItem("pp_pro", "false");
+            }
+          })
+          .catch(() => {}); // fail silently — never revoke pro on network error
+      }, []);
+
       // Check notification banner on mount
       useEffect(() => {
         if (canNotify() && Notification.permission === "default") {
@@ -3661,7 +3685,7 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
                       try {
                         const r = await fetch("/api/create-portal-session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sessionId: sid }) });
                         const d = await r.json();
-                        if (d.url) window.location.href = d.url;
+                        if (d.url) { localStorage.removeItem("pp_sub_check"); window.location.href = d.url; }
                         else alert("Could not open portal: " + (d.error || "Unknown error"));
                       } catch(e) { alert("Error: " + e.message); }
                     }} style={{ display: "flex", alignItems: "center", gap: 6, background: C.sagePale, border: `1.5px solid ${C.sageLight}`, borderRadius: 100, padding: "5px 12px", cursor: "pointer" }}>
@@ -3720,6 +3744,36 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
                     onDismiss={() => { setShowNotifBanner(false); localStorage.setItem("pp_notif_dismissed", "1"); }}
                   />
                 )}
+
+                {/* Farm identity banner */}
+                <div
+                  onClick={() => { if (!farmProfile.name) setView("farm"); }}
+                  style={{ marginBottom: 18, borderRadius: 14, border: `1.5px solid ${farmProfile.name ? C.sageLight : C.parchment}`, background: farmProfile.name ? `linear-gradient(135deg,${C.sagePale} 0%,${C.offWhite} 100%)` : C.offWhite, padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: farmProfile.name ? "default" : "pointer" }}
+                >
+                  {farmProfile.name ? (
+                    <>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <span style={{ fontSize: 22 }}>🏡</span>
+                        <div>
+                          <div style={{ fontFamily: F.display, fontWeight: 800, fontSize: 15, color: C.dark, letterSpacing: "-0.01em" }}>{farmProfile.name}</div>
+                          <div style={{ display: "flex", gap: 6, marginTop: 3, alignItems: "center", flexWrap: "wrap" }}>
+                            {farmProfile.type && <span style={{ fontFamily: F.body, fontSize: 10, fontWeight: 700, color: C.sageDark, background: C.sageLight + "55", border: `1px solid ${C.sageLight}`, borderRadius: 100, padding: "1px 8px" }}>{farmProfile.type}</span>}
+                            {zipCode && <span style={{ fontFamily: F.body, fontSize: 10, color: C.stone }}>📍 {zipCode}</span>}
+                          </div>
+                        </div>
+                      </div>
+                      <button onClick={() => setView("farm")} style={{ padding: "5px 12px", borderRadius: 8, border: `1.5px solid ${C.parchment}`, background: "transparent", color: C.stone, fontFamily: F.body, fontSize: 11, cursor: "pointer", fontWeight: 600, flexShrink: 0 }}>Edit</button>
+                    </>
+                  ) : (
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, width: "100%" }}>
+                      <span style={{ fontSize: 20 }}>🏡</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontFamily: F.body, fontSize: 13, color: C.stone, fontWeight: 600 }}>Set up your farm profile</div>
+                        <div style={{ fontFamily: F.body, fontSize: 11, color: C.pebble, marginTop: 1 }}>Add your farm name, type & location →</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 {/* Primary nav */}
                 <div style={{ display: "flex", background: C.white, borderRadius: 12, padding: 4, marginBottom: 28, border: `1.5px solid ${C.parchment}`, gap: 4 }}>
