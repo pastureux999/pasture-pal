@@ -304,8 +304,13 @@
     }
 
     // Handle ?pro=1 redirect back from Stripe success
-    if (new URLSearchParams(window.location.search).get("pro") === "1") {
-      try { localStorage.setItem("pp_pro", "true"); } catch {}
+    const _urlParams = new URLSearchParams(window.location.search);
+    if (_urlParams.get("pro") === "1") {
+      try {
+        localStorage.setItem("pp_pro", "true");
+        const sid = _urlParams.get("session_id");
+        if (sid) localStorage.setItem("pp_stripe_session", sid);
+      } catch {}
       window.history.replaceState({}, "", window.location.pathname);
     }
 
@@ -2800,7 +2805,19 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
                 )}
 
                 {isPro
-                  ? <div style={{ display: "flex", alignItems: "center", gap: 6, background: C.sagePale, border: `1.5px solid ${C.sageLight}`, borderRadius: 100, padding: "5px 12px" }}><div style={{ width: 7, height: 7, borderRadius: "50%", background: C.sage }} /><span style={{ fontFamily: F.body, fontSize: 11, color: C.sageDark, fontWeight: 700, letterSpacing: "0.06em" }}>PRO</span></div>
+                  ? <button onClick={async () => {
+                      const sid = localStorage.getItem("pp_stripe_session");
+                      if (!sid) { alert("To manage your subscription, visit stripe.com or contact support."); return; }
+                      try {
+                        const r = await fetch("/api/create-portal-session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sessionId: sid }) });
+                        const d = await r.json();
+                        if (d.url) window.location.href = d.url;
+                        else alert("Could not open portal: " + (d.error || "Unknown error"));
+                      } catch(e) { alert("Error: " + e.message); }
+                    }} style={{ display: "flex", alignItems: "center", gap: 6, background: C.sagePale, border: `1.5px solid ${C.sageLight}`, borderRadius: 100, padding: "5px 12px", cursor: "pointer" }}>
+                      <div style={{ width: 7, height: 7, borderRadius: "50%", background: C.sage }} />
+                      <span style={{ fontFamily: F.body, fontSize: 11, color: C.sageDark, fontWeight: 700, letterSpacing: "0.06em" }}>PRO</span>
+                    </button>
                   : <Btn small variant="primary" onClick={() => setShowUpgrade(true)} style={{ borderRadius: 100, padding: "7px 18px" }}>Go Pro</Btn>
                 }
               </div>
