@@ -19,6 +19,7 @@
   <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html { min-height: 100%; }
@@ -284,6 +285,13 @@
     ];
 
     const STRIPE_CONFIG = { monthlyAmount: 6, yearlyAmount: 49, monthlyPriceId: "price_1TgcjcANeD0Wrj9Wd3kwUKK5", yearlyPriceId: "price_1TgcjbANeD0Wrj9WBzEjkv2n" };
+
+    // ── Supabase ── (replace with your project values — anon key is safe to commit)
+    const SUPABASE_URL  = "https://gicbaepxvoxazoinbirs.supabase.co";
+    const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdpY2JhZXB4dm94YXpvaW5iaXJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExMDg2NzcsImV4cCI6MjA5NjY4NDY3N30.XHQoC_ZnauU-L9Sa7Ksfk9IP_ZDvVxnO5iGTPMdSNyo";
+    const supabase = (SUPABASE_URL && SUPABASE_URL !== "YOUR_SUPABASE_URL" && window.supabase)
+      ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON)
+      : null;
 
     async function startStripeCheckout(priceId) {
       try {
@@ -2657,6 +2665,93 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
       );
     }
 
+    // ── Auth Modal ────────────────────────────────────────────────────
+    function AuthModal({ onClose, onSuccess }) {
+      const [tab, setTab]           = useState("signin");
+      const [email, setEmail]       = useState("");
+      const [password, setPassword] = useState("");
+      const [loading, setLoading]   = useState(false);
+      const [error, setError]       = useState("");
+      const [success, setSuccess]   = useState("");
+
+      async function handleSubmit() {
+        if (!email || !password) { setError("Please enter your email and password."); return; }
+        if (password.length < 6) { setError("Password must be at least 6 characters."); return; }
+        setLoading(true); setError(""); setSuccess("");
+        try {
+          if (tab === "signup") {
+            const { data, error } = await supabase.auth.signUp({ email, password });
+            if (error) throw error;
+            if (data.user && !data.user.email_confirmed_at) {
+              setSuccess("Account created! Check your email for a confirmation link, then sign in.");
+            } else {
+              onSuccess && onSuccess(data.user);
+              onClose();
+            }
+          } else {
+            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+            if (error) throw error;
+            onSuccess && onSuccess(data.user);
+            onClose();
+          }
+        } catch(e) {
+          setError(e.message.includes("Invalid login") ? "Incorrect email or password." : e.message);
+        }
+        setLoading(false);
+      }
+
+      return (
+        <Modal onClose={onClose}>
+          <div style={{ textAlign:"center", marginBottom:20 }}>
+            <div style={{ fontSize:36, marginBottom:8 }}>🏡</div>
+            <h3 style={{ fontFamily:F.display, fontSize:22, fontWeight:800, color:C.dark, marginBottom:4 }}>
+              {tab === "signin" ? "Welcome back" : "Create account"}
+            </h3>
+            <p style={{ fontFamily:F.body, fontSize:13, color:C.stone }}>
+              {tab === "signin" ? "Sign in to sync your data across devices." : "Save your data to the cloud — access from any device."}
+            </p>
+          </div>
+
+          {/* Tab toggle */}
+          <div style={{ display:"flex", background:C.cream, borderRadius:10, padding:3, marginBottom:20, gap:3 }}>
+            {[["signin","Sign In"],["signup","Create Account"]].map(([v,l])=>(
+              <button key={v} onClick={()=>{setTab(v);setError("");setSuccess("");}} style={{ flex:1,padding:"8px",borderRadius:8,border:"none",cursor:"pointer",fontFamily:F.body,fontSize:13,fontWeight:tab===v?700:500,background:tab===v?C.white:"transparent",color:tab===v?C.dark:C.stone }}>
+                {l}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ marginBottom:12 }}>
+            <label style={{ fontFamily:F.body,fontSize:11,color:C.stone,fontWeight:600,display:"block",marginBottom:4 }}>EMAIL</label>
+            <input type="email" value={email} onChange={e=>setEmail(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleSubmit()} autoComplete="email" style={{ width:"100%",padding:"10px 14px",borderRadius:9,border:`1.5px solid ${C.parchment}`,fontFamily:F.body,fontSize:14,background:C.white,outline:"none" }} placeholder="you@example.com" />
+          </div>
+          <div style={{ marginBottom:20 }}>
+            <label style={{ fontFamily:F.body,fontSize:11,color:C.stone,fontWeight:600,display:"block",marginBottom:4 }}>PASSWORD</label>
+            <input type="password" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleSubmit()} autoComplete={tab==="signin"?"current-password":"new-password"} style={{ width:"100%",padding:"10px 14px",borderRadius:9,border:`1.5px solid ${C.parchment}`,fontFamily:F.body,fontSize:14,background:C.white,outline:"none" }} placeholder="••••••••" />
+            {tab==="signup" && <div style={{ fontFamily:F.body,fontSize:11,color:C.stone,marginTop:4 }}>At least 6 characters</div>}
+          </div>
+
+          {error   && <div style={{ background:"rgba(184,92,52,0.1)",border:`1px solid ${C.terracotta}44`,borderRadius:9,padding:"10px 14px",marginBottom:14,fontFamily:F.body,fontSize:13,color:C.terracotta }}>{error}</div>}
+          {success && <div style={{ background:C.sagePale,border:`1px solid ${C.sageLight}`,borderRadius:9,padding:"10px 14px",marginBottom:14,fontFamily:F.body,fontSize:13,color:C.sageDark }}>{success}</div>}
+
+          <div style={{ display:"flex",gap:10 }}>
+            <Btn variant="ghost" full onClick={onClose}>Cancel</Btn>
+            <Btn variant="primary" full disabled={loading} onClick={handleSubmit}>
+              {loading ? "Please wait…" : tab==="signin" ? "Sign In" : "Create Account"}
+            </Btn>
+          </div>
+
+          {tab==="signin" && (
+            <div style={{ textAlign:"center",marginTop:14 }}>
+              <button onClick={async()=>{ if(!email){setError("Enter your email first.");return;} setLoading(true); const {error}=await supabase.auth.resetPasswordForEmail(email,{redirectTo:window.location.href}); setLoading(false); if(error)setError(error.message); else setSuccess("Password reset email sent!"); }} style={{ background:"none",border:"none",cursor:"pointer",fontFamily:F.body,fontSize:12,color:C.stone,textDecoration:"underline" }}>
+                Forgot password?
+              </button>
+            </div>
+          )}
+        </Modal>
+      );
+    }
+
     // ── Farm: Constants ──────────────────────────────────────────────
     const PRODUCTION_TYPES = [
       { key:"eggs",    label:"Eggs",    emoji:"🥚", unit:"eggs",    color:C.wheat    },
@@ -3260,6 +3355,13 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
       const [isPro, setIsPro]               = useState(() => {
         try { return localStorage.getItem("pp_pro") === "true"; } catch { return false; }
       });
+
+      // Auth + sync state
+      const [user, setUser]             = useState(null);
+      const [showAuth, setShowAuth]     = useState(false);
+      const [syncStatus, setSyncStatus] = useState("idle"); // idle|pending|syncing|synced|error|offline
+      const syncTimerRef                = React.useRef(null);
+
       const [notifState, setNotifState]     = useState(canNotify() ? Notification.permission : "denied");
       const [showNotifBanner, setShowNotifBanner] = useState(false);
       const FREE_LIMIT = 10;
@@ -3284,6 +3386,76 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
       useEffect(() => { try { localStorage.setItem("pp_fin", JSON.stringify(finances)); } catch {} }, [finances]);
       useEffect(() => { try { localStorage.setItem("pp_past", JSON.stringify(pastures)); } catch {} }, [pastures]);
       useEffect(() => { try { localStorage.setItem("pp_rot", JSON.stringify(rotations)); } catch {} }, [rotations]);
+
+      // ── Supabase auth init ──────────────────────────────────────────
+      useEffect(() => {
+        if (!supabase) return;
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          const u = session?.user ?? null;
+          setUser(u);
+          if (u) loadFromCloud(u.id);
+        });
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+          const u = session?.user ?? null;
+          setUser(u);
+          if (u && event === "SIGNED_IN") loadFromCloud(u.id);
+        });
+        return () => subscription.unsubscribe();
+      }, []);
+
+      async function loadFromCloud(userId) {
+        setSyncStatus("syncing");
+        try {
+          const { data } = await supabase
+            .from("pp_user_data")
+            .select("data, updated_at")
+            .eq("user_id", userId)
+            .maybeSingle();
+          if (data?.data) {
+            const serverTs = new Date(data.updated_at).getTime();
+            const localTs  = parseInt(localStorage.getItem("pp_last_sync") || "0");
+            if (serverTs > localTs) {
+              const d = data.data;
+              if (d.animals    !== undefined) setAnimals(d.animals);
+              if (d.garden     !== undefined) setGarden(d.garden);
+              if (d.zipCode    !== undefined) setZipCode(d.zipCode);
+              if (d.gardenZone !== undefined) setGardenZone(d.gardenZone);
+              if (d.production !== undefined) setProduction(d.production);
+              if (d.finances   !== undefined) setFinances(d.finances);
+              if (d.pastures   !== undefined) setPastures(d.pastures);
+              if (d.rotations  !== undefined) setRotations(d.rotations);
+              if (d.isPro      !== undefined) setIsPro(d.isPro);
+              localStorage.setItem("pp_last_sync", serverTs.toString());
+            }
+          }
+          setSyncStatus("synced");
+        } catch {
+          setSyncStatus("error");
+        }
+      }
+
+      // ── Auto-sync to cloud when data changes ───────────────────────
+      useEffect(() => {
+        if (!supabase || !user) return;
+        setSyncStatus("pending");
+        if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+        syncTimerRef.current = setTimeout(async () => {
+          if (!navigator.onLine) { setSyncStatus("offline"); return; }
+          setSyncStatus("syncing");
+          try {
+            await supabase.from("pp_user_data").upsert({
+              user_id: user.id,
+              data: { animals, garden, zipCode, gardenZone, production, finances, pastures, rotations, isPro },
+              updated_at: new Date().toISOString(),
+            }, { onConflict: "user_id" });
+            localStorage.setItem("pp_last_sync", Date.now().toString());
+            setSyncStatus("synced");
+          } catch {
+            setSyncStatus(navigator.onLine ? "error" : "offline");
+          }
+        }, 2500);
+        return () => { if (syncTimerRef.current) clearTimeout(syncTimerRef.current); };
+      }, [user, animals, garden, zipCode, gardenZone, production, finances, pastures, rotations, isPro]);
 
       // Check notification banner on mount
       useEffect(() => {
@@ -3400,6 +3572,39 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
                     </button>
                   : <Btn small variant="primary" onClick={() => setShowUpgrade(true)} style={{ borderRadius: 100, padding: "7px 18px" }}>Go Pro</Btn>
                 }
+
+                {/* Sync / Auth button — only shown when Supabase is configured */}
+                {supabase && (
+                  user ? (
+                    <div style={{ position:"relative" }}>
+                      <button
+                        onClick={() => {
+                          if (window.confirm(`Signed in as ${user.email}\n\nSign out? Your data stays on this device.`)) {
+                            supabase.auth.signOut();
+                            setUser(null);
+                            setSyncStatus("idle");
+                          }
+                        }}
+                        title={`Signed in as ${user.email}${syncStatus==="synced"?" · Synced":syncStatus==="pending"?" · Saving…":syncStatus==="error"?" · Sync error":""}`}
+                        style={{ width:36,height:36,borderRadius:"50%",background:C.brown,border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",position:"relative" }}
+                      >
+                        <span style={{ fontFamily:F.display,fontSize:14,fontWeight:700,color:C.cream }}>
+                          {user.email[0].toUpperCase()}
+                        </span>
+                        {/* Sync dot */}
+                        <div style={{ position:"absolute",bottom:-1,right:-1,width:11,height:11,borderRadius:"50%",border:`2px solid ${C.offWhite}`,background:syncStatus==="synced"?C.sage:syncStatus==="syncing"||syncStatus==="pending"?C.wheat:syncStatus==="error"?C.terracotta:C.pebble }} />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setShowAuth(true)}
+                      title="Sign in to sync across devices"
+                      style={{ display:"flex",alignItems:"center",gap:6,background:"none",border:`1.5px solid ${C.parchment}`,borderRadius:100,padding:"6px 14px",cursor:"pointer",fontFamily:F.body,fontSize:12,fontWeight:600,color:C.brown }}
+                    >
+                      <span style={{ fontSize:13 }}>☁️</span> Sign In
+                    </button>
+                  )
+                )}
               </div>
             </div>
           </header>
@@ -3489,7 +3694,15 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
             </footer>
           )}
 
+          {/* ── Offline banner ── */}
+          {syncStatus === "offline" && user && supabase && (
+            <div style={{ position:"fixed",top:0,left:0,right:0,zIndex:9999,background:"#3D2B10",color:"#F5EDD8",textAlign:"center",padding:"8px 16px",fontFamily:F.body,fontSize:12,fontWeight:600,letterSpacing:"0.04em" }}>
+              📴 You're offline — changes saved locally and will sync when you reconnect.
+            </div>
+          )}
+
           {/* ── Modals ── */}
+          {showAuth && supabase && <AuthModal onClose={() => setShowAuth(false)} onSuccess={() => {}} />}
           {showAdd      && <AddAnimalModal onSave={addAnimal} onClose={() => setShowAdd(false)} canAdd={isPro || animals.length < FREE_LIMIT} />}
           {showUpgrade  && <UpgradeModal onClose={() => setShowUpgrade(false)} onUpgrade={() => setIsPro(true)} />}
           {showGestation    && <GestationModal animals={animals} onClose={() => setShowGestation(false)} onAddReminder={(animalId, r) => { setAnimals(p => p.map(a => a.id === animalId ? { ...a, reminders: [...(a.reminders||[]), r] } : a)); }} />}
