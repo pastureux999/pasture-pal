@@ -5,9 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PasturePal — Your AI-Powered Homestead Assistant</title>
   <meta name="description" content="PasturePal combines 5 unique AI features for your herd with a full garden & harvest tracker — USDA zone-based planting calendar, harvest reminders, and AI garden advisor. Free for 10 animals." />
+  <!-- Open Graph / Social sharing -->
   <meta property="og:title" content="PasturePal — Your AI-Powered Homestead Assistant" />
-  <meta property="og:description" content="The only homestead app with AI symptom checking, body condition scoring, per-animal AI, and a full garden & harvest tracker with zip code–based planting advice. Free for up to 10 animals." />
+  <meta property="og:description" content="Track livestock, plan your garden, log production, and get instant AI advice — all in one free app built for small farms and homesteads." />
   <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://www.mypasturepal.com" />
+  <meta property="og:image" content="https://www.mypasturepal.com/icons/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:site_name" content="PasturePal" />
+  <!-- Twitter / X Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="PasturePal — Your AI-Powered Homestead Assistant" />
+  <meta name="twitter:description" content="Track livestock, plan your garden, log production, and get instant AI advice — all in one free app built for small farms and homesteads." />
+  <meta name="twitter:image" content="https://www.mypasturepal.com/icons/og-image.png" />
   <!-- Google Analytics -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-B61GZDRV4Y"></script>
   <script>
@@ -1072,11 +1083,40 @@
   <div class="footer-logo">Pasture<span>Pal</span></div>
   <div class="footer-links">
     <a href="privacy.html" class="footer-link">Privacy Policy</a>
+    <a href="terms.html" class="footer-link">Terms of Service</a>
     <a href="mailto:support@mypasturepal.com" class="footer-link">Contact</a>
     <a href="PasturePal.html" class="footer-link">Open App</a>
   </div>
   <div class="footer-copy">© 2026 PasturePal · Built with love for small farms & homesteads 🐄</div>
 </footer>
 
+<!-- ── Cookie Consent Banner ── -->
+<div id="cookie-banner" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:9999;background:#2C2318;color:#F5EDD8;padding:16px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;box-shadow:0 -4px 24px rgba(0,0,0,0.25);">
+  <p style="margin:0;font-size:13px;line-height:1.5;max-width:680px;font-family:'Lato',sans-serif;">
+    We use cookies to analyze site traffic via Google Analytics. By clicking "Accept" you consent to our use of cookies as described in our <a href="privacy.html" style="color:#A8C5A0;text-decoration:underline;">Privacy Policy</a>.
+  </p>
+  <div style="display:flex;gap:10px;flex-shrink:0;">
+    <button onclick="cookieConsent('decline')" style="background:transparent;border:1.5px solid rgba(245,237,216,0.3);color:#F5EDD8;padding:8px 18px;border-radius:100px;font-size:13px;font-family:'Lato',sans-serif;font-weight:600;cursor:pointer;">Decline</button>
+    <button onclick="cookieConsent('accept')" style="background:#4D7057;border:none;color:#F5EDD8;padding:8px 18px;border-radius:100px;font-size:13px;font-family:'Lato',sans-serif;font-weight:600;cursor:pointer;">Accept</button>
+  </div>
+</div>
+<script>
+  (function() {
+    var consent = localStorage.getItem('pp_cookie_consent');
+    if (!consent) {
+      document.getElementById('cookie-banner').style.display = 'flex';
+    } else if (consent === 'decline') {
+      // Block GA if previously declined
+      window['ga-disable-G-B61GZDRV4Y'] = true;
+    }
+  })();
+  function cookieConsent(choice) {
+    localStorage.setItem('pp_cookie_consent', choice);
+    document.getElementById('cookie-banner').style.display = 'none';
+    if (choice === 'decline') {
+      window['ga-disable-G-B61GZDRV4Y'] = true;
+    }
+  }
+</script>
 </body>
 </html>
