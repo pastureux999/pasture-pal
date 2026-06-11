@@ -16,7 +16,9 @@ module.exports = async function handler(req, res) {
     try { body = JSON.parse(body); } catch { return res.status(400).json({ error: "Invalid JSON body" }); }
   }
 
-  const { system, messages, maxTokens = 600, imageBase64, imageMediaType = "image/jpeg" } = body || {};
+  const { system, messages, maxTokens = 600, imageBase64, imageMediaType = "image/jpeg", model } = body || {};
+  // Vision requests use sonnet (more reliable image analysis); text-only uses haiku (cheaper)
+  const modelId = model || (imageBase64 ? "claude-sonnet-4-6" : "claude-haiku-4-5-20251001");
 
   // If an image is provided, convert the last user message to vision format
   let apiMessages = messages || [];
@@ -48,7 +50,7 @@ module.exports = async function handler(req, res) {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
+        model: modelId,
         max_tokens: maxTokens,
         system: system || "You are a helpful homestead assistant.",
         messages: apiMessages,
