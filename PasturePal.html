@@ -204,11 +204,10 @@
           padding-top: env(safe-area-inset-top);
         }
 
-        /* Tighter modal on small screens */
+        /* Modal sheet on small screens */
         .pp-modal {
-          padding: 20px 18px 18px !important;
-          border-radius: 16px !important;
-          max-height: 96vh !important;
+          max-height: 96dvh !important;
+          border-radius: 18px 18px 0 0 !important;
         }
 
         /* Tab label — hide text on very small, show emoji only */
@@ -619,13 +618,17 @@
 
     function Modal({ title, onClose, children, wide }) {
       return (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(30,21,9,0.72)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, backdropFilter: "blur(8px)" }} onClick={e => e.target === e.currentTarget && onClose()}>
-          <div className="pp-modal" style={{ background: C.offWhite, borderRadius: 20, padding: "28px 28px 24px", maxWidth: wide ? 560 : 500, width: "100%", maxHeight: "92vh", overflowY: "auto", border: `1.5px solid ${C.parchment}`, boxShadow: "0 40px 100px rgba(30,21,9,0.3)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: title ? 24 : 8 }}>
-              {title ? <h3 style={{ margin: 0, fontFamily: F.display, color: C.dark, fontSize: 22, fontWeight: 700 }}>{title}</h3> : <div />}
-              <button onClick={onClose} style={{ background: C.parchment, border: "none", borderRadius: 8, width: 32, height: 32, cursor: "pointer", color: C.stone, fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(30,21,9,0.72)", zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "16px 16px 0", backdropFilter: "blur(8px)" }} onClick={e => e.target === e.currentTarget && onClose()}>
+          <div className="pp-modal" style={{ background: C.offWhite, borderRadius: "20px 20px 0 0", maxWidth: wide ? 560 : 500, width: "100%", maxHeight: "92dvh", display: "flex", flexDirection: "column", border: `1.5px solid ${C.parchment}`, borderBottom: "none", boxShadow: "0 -20px 60px rgba(30,21,9,0.25)" }}>
+            {/* Sticky header — always visible, never scrolls away */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 22px 16px", borderBottom: `1px solid ${C.parchment}`, flexShrink: 0 }}>
+              {title ? <h3 style={{ margin: 0, fontFamily: F.display, color: C.dark, fontSize: 20, fontWeight: 700 }}>{title}</h3> : <div />}
+              <button onClick={onClose} style={{ background: C.parchment, border: "none", borderRadius: 8, width: 34, height: 34, cursor: "pointer", color: C.stone, fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>✕</button>
             </div>
-            {children}
+            {/* Scrollable body */}
+            <div style={{ overflowY: "auto", padding: "20px 22px calc(24px + env(safe-area-inset-bottom))", flex: 1, WebkitOverflowScrolling: "touch" }}>
+              {children}
+            </div>
           </div>
         </div>
       );
@@ -3740,7 +3743,27 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
           setUser(u);
           if (u && event === "SIGNED_IN") loadFromCloud(u.id);
         });
-        return () => subscription.unsubscribe();
+        // Re-fetch from cloud when switching back to this tab/app — keeps
+        // phone and web in sync when used on different devices.
+        const handleVisibility = () => {
+          if (document.visibilityState === "visible") {
+            supabase.auth.getSession().then(({ data: { session } }) => {
+              const u = session?.user ?? null;
+              if (u) {
+                const lastFetch = parseInt(localStorage.getItem("pp_last_sync") || "0");
+                const staleMs = 30 * 1000; // re-fetch if last sync was > 30s ago
+                if (Date.now() - lastFetch > staleMs) loadFromCloud(u.id);
+              }
+            });
+          }
+        };
+        document.addEventListener("visibilitychange", handleVisibility);
+        window.addEventListener("pageshow", handleVisibility); // iOS bfcache
+        return () => {
+          subscription.unsubscribe();
+          document.removeEventListener("visibilitychange", handleVisibility);
+          window.removeEventListener("pageshow", handleVisibility);
+        };
       }, []);
 
       async function loadFromCloud(userId) {
