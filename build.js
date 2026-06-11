@@ -46,11 +46,9 @@ try {
 
 let compiled;
 try {
+  // Only transform JSX syntax — modern iOS/Android support ES6+ natively
   const result = babel.transformSync(jsxSource, {
-    presets: [
-      ['@babel/preset-env', { targets: 'defaults' }],
-      ['@babel/preset-react']
-    ]
+    presets: [['@babel/preset-react']]
   });
   compiled = result.code;
 } catch (err) {
