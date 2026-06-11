@@ -59,9 +59,11 @@ try {
 console.log('Compiled to:', Math.round(compiled.length / 1024) + 'KB');
 
 // ── Write compiled HTML ───────────────────────────────────────────────────
+// Wrap in IIFE so top-level `const supabase` doesn't shadow window.supabase
+// (strict-mode top-level const cannot shadow a non-configurable global property)
 const blockEnd = closeIdx + '</script>'.length;
 let output = html.slice(0, blockStart)
-  + '<script>\n' + compiled + '\n</script>'
+  + '<script>\n(function(){\n' + compiled + '\n})();\n</script>'
   + html.slice(blockEnd);
 
 // Remove Babel standalone CDN tag — no longer needed after compilation
