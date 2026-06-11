@@ -32,9 +32,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,800;1,400&family=Jost:wght@400;500;600;700&family=DM+Mono&display=swap" rel="stylesheet" />
-  <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7/babel.min.js"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.25.6/babel.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -79,6 +79,20 @@
     </div>
     <style>@keyframes ppload{0%{width:0%;margin-left:0}60%{width:100%;margin-left:0}100%{width:0%;margin-left:100%}}</style>
   </div>
+  <script>
+    // If app hasn't loaded after 30s, show a reload prompt instead of blank screen
+    setTimeout(function() {
+      var loader = document.getElementById('app-loader');
+      if (loader) {
+        loader.innerHTML = '<div style="text-align:center;padding:32px;font-family:Georgia,serif;">' +
+          '<div style="font-size:32px;margin-bottom:16px;">🐄</div>' +
+          '<div style="font-size:16px;font-weight:700;color:#3D2B10;margin-bottom:8px;">Taking longer than usual…</div>' +
+          '<div style="font-size:13px;color:#7A6652;margin-bottom:20px;">Try reloading the page.<br>Make sure you have a good connection.</div>' +
+          '<button onclick="location.reload()" style="background:#6B8F6B;color:#fff;border:none;border-radius:100px;padding:12px 28px;font-size:14px;font-family:Georgia,serif;cursor:pointer;font-weight:700;">Reload</button>' +
+          '</div>';
+      }
+    }, 30000);
+  </script>
   <script type="text/babel">
     const { useState, useRef, useEffect, useCallback } = React;
 
