@@ -16,7 +16,28 @@ module.exports = async function handler(req, res) {
     try { body = JSON.parse(body); } catch { return res.status(400).json({ error: "Invalid JSON body" }); }
   }
 
-  const { system, messages, maxTokens = 600 } = body || {};
+  const { system, messages, maxTokens = 600, imageBase64, imageMediaType = "image/jpeg" } = body || {};
+
+  // If an image is provided, convert the last user message to vision format
+  let apiMessages = messages || [];
+  if (imageBase64 && apiMessages.length > 0) {
+    const last = apiMessages[apiMessages.length - 1];
+    if (last.role === "user" && typeof last.content === "string") {
+      apiMessages = [
+        ...apiMessages.slice(0, -1),
+        {
+          role: "user",
+          content: [
+            {
+              type: "image",
+              source: { type: "base64", media_type: imageMediaType, data: imageBase64 }
+            },
+            { type: "text", text: last.content }
+          ]
+        }
+      ];
+    }
+  }
 
   try {
     const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -30,7 +51,7 @@ module.exports = async function handler(req, res) {
         model: "claude-haiku-4-5-20251001",
         max_tokens: maxTokens,
         system: system || "You are a helpful homestead assistant.",
-        messages: messages || [],
+        messages: apiMessages,
       }),
     });
 
