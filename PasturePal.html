@@ -1916,30 +1916,68 @@ Types: vaccination|feed|hoof|worming|calving|vet|custom. Space dates starting no
       const [loading, setLoading] = useState(false);
       const [result, setResult] = useState(null);
       const [error, setError] = useState(null);
-      const BCS_SCALE = { Cattle:"1–9", Goat:"1–5", Sheep:"1–5", Horse:"1–9", Pig:"1–5", default:"1–5" };
-      const scale = BCS_SCALE[animal.species] || BCS_SCALE.default;
+
+      const BCS_MAX  = { Cattle:9, Horse:9, Goat:5, Sheep:5, Pig:5 };
+      const BCS_IDEAL = { Cattle:"4–6", Horse:"4–6", Goat:"2.5–3.5", Sheep:"2.5–3.5", Pig:"3–3.5" };
+      const maxScale  = BCS_MAX[animal.species]  || 5;
+      const idealRange = BCS_IDEAL[animal.species] || "2.5–3.5";
+      const scaleLabel = `1–${maxScale}`;
+
+      // Robust parser — handles markdown, extra spaces, multi-line values
+      const parse = (text, key) => {
+        const re = new RegExp(`(?:^|\\n)\\s*\\**${key}\\**:?\\s*(.+?)(?=\\n\\s*\\**[A-Z_]+\\**:?|$)`, "si");
+        const m = text.match(re);
+        return m ? m[1].replace(/\*+/g, "").trim() : "";
+      };
 
       const analyze = async (e) => {
         const file = e.target.files[0]; if (!file) return;
         setLoading(true); setResult(null); setError(null);
         const reader = new FileReader();
         reader.onload = async ev => {
-          const dataUrl = ev.target.result;
-          const mediaType = dataUrl.split(";")[0].split(":")[1] || "image/jpeg";
-          const base64 = dataUrl.split(",")[1];
-          const system = `You are a livestock body condition scoring expert for PasturePal. You are analyzing an actual photo of a live animal. Assess visible physical indicators such as spine prominence, rib visibility, hip bone protrusion, muscle coverage, and fat deposits.`;
-          const msg = `Carefully examine this photo of a ${animal.breed || ""} ${animal.species} and score its body condition using the ${scale} BCS scale.
-Respond EXACTLY in this format (no extra text):
-SCORE: [numeric score e.g. 5/9 or 3/5]
-STATUS: [Underweight|Ideal|Overweight]
-ASSESSMENT: [2 sentences describing what you visually observe — spine, ribs, hips, muscle cover]
-RECOMMENDATION: [1 concrete sentence on what to adjust in feeding or management]
-IDEAL_RANGE: [ideal BCS range for this breed and species]`;
           try {
+            const dataUrl = ev.target.result;
+            const mediaType = dataUrl.split(";")[0].split(":")[1] || "image/jpeg";
+            const base64 = dataUrl.split(",")[1];
+
+            const system = `You are a certified livestock body condition scoring expert. You will visually assess a photo of a live animal and provide a precise BCS score. Focus on: spine prominence, rib visibility, hip and tail-head fat cover, muscle mass, and overall body fill. Be specific about what you see.`;
+
+            const msg = `Look at this photo of a ${animal.breed || ""}${animal.breed ? " " : ""}${animal.species} and score its body condition on the ${scaleLabel} scale.
+
+You MUST respond using EXACTLY this format with these exact labels — no markdown, no extra text before or after:
+
+SCORE: [number only, e.g. 4 or 3.5]
+OUT_OF: [${maxScale}]
+STATUS: [Underweight or Ideal or Overweight]
+ASSESSMENT: [2–3 sentences on what you specifically see — ribs, spine, hips, muscle cover]
+RECOMMENDATION: [1 actionable sentence on feeding or management]
+IDEAL_RANGE: [ideal BCS range for this species, e.g. ${idealRange}]
+
+Example of correct format:
+SCORE: 4
+OUT_OF: ${maxScale}
+STATUS: Ideal
+ASSESSMENT: Ribs are easily felt but not visually prominent. Spine has slight coverage and hip bones are rounded with moderate fat deposit.
+RECOMMENDATION: Current feeding program appears appropriate — maintain and monitor monthly.
+IDEAL_RANGE: ${idealRange}`;
+
             const text = await callAIWithImage(system, msg, base64, mediaType);
-            const g = k => { const m = text.match(new RegExp(k+":\\s*(.+)")); return m?m[1].trim():""; };
-            setResult({ score:g("SCORE"), status:g("STATUS"), assessment:g("ASSESSMENT"), recommendation:g("RECOMMENDATION"), ideal:g("IDEAL_RANGE") });
-          } catch { setError(AI_ERROR_MSG); }
+            const scoreRaw = parse(text, "SCORE");
+            const scoreNum = parseFloat(scoreRaw);
+            const status   = parse(text, "STATUS");
+            const assessment = parse(text, "ASSESSMENT");
+            const recommendation = parse(text, "RECOMMENDATION");
+            const ideal = parse(text, "IDEAL_RANGE") || idealRange;
+
+            if (!scoreRaw && !assessment) {
+              // Fallback: show raw response so user sees something
+              setResult({ raw: text, score: null });
+            } else {
+              setResult({ score: scoreNum || scoreRaw, outOf: maxScale, status, assessment, recommendation, ideal, raw: null });
+            }
+          } catch(err) {
+            setError("Could not analyze photo. Please try again with a clear side-view photo.");
+          }
           setLoading(false);
         };
         reader.readAsDataURL(file);
@@ -1947,12 +1985,13 @@ IDEAL_RANGE: [ideal BCS range for this breed and species]`;
       };
 
       const statusColor = { Underweight: C.terracotta, Ideal: C.sage, Overweight: C.amber };
+      const sColor = statusColor[result?.status] || C.sage;
 
       if (!isPro) return (
         <div style={{ background:C.cream,border:`1.5px dashed ${C.parchment}`,borderRadius:14,padding:"20px",textAlign:"center",marginTop:16 }}>
           <div style={{ fontSize:28,marginBottom:8 }}>📊</div>
           <div style={{ fontFamily:F.display,fontSize:16,color:C.dark,fontWeight:700,marginBottom:6 }}>AI Body Condition Score</div>
-          <div style={{ fontFamily:F.body,fontSize:12,color:C.stone,marginBottom:14,lineHeight:1.55 }}>Upload a photo and AI rates {animal.name}'s body condition on the {scale} scale — the same metric vets use.</div>
+          <div style={{ fontFamily:F.body,fontSize:12,color:C.stone,marginBottom:14,lineHeight:1.55 }}>Upload a photo and AI rates {animal.name}'s body condition on the {scaleLabel} scale — the same metric vets use.</div>
           <Btn small variant="primary" onClick={onUpgrade}>Upgrade to Pro</Btn>
         </div>
       );
@@ -1961,29 +2000,79 @@ IDEAL_RANGE: [ideal BCS range for this breed and species]`;
         <div style={{ marginTop:16 }}>
           <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10 }}>
             <div style={{ fontFamily:F.body,fontSize:11,color:C.stone,textTransform:"uppercase",letterSpacing:"0.12em",fontWeight:700 }}>📊 AI Body Condition Score</div>
-            <Btn small variant="outline" onClick={() => inputRef.current.click()} disabled={loading}>{loading?"Analyzing…":"Upload Photo"}</Btn>
+            <Btn small variant="outline" onClick={() => inputRef.current.click()} disabled={loading}>
+              {loading ? "Analyzing…" : result ? "Re-analyze" : "Upload Photo"}
+            </Btn>
           </div>
-          <input ref={inputRef} type="file" accept="image/*" style={{ display:"none" }} onChange={analyze} />
-          {error && <div style={{ fontFamily:F.body,fontSize:12,color:C.amber,padding:"10px 14px",background:C.amber+"12",borderRadius:8 }}>{error}</div>}
-          {result && (
-            <div style={{ background:`linear-gradient(135deg,${(statusColor[result.status]||C.sage)+"15"},${C.offWhite})`,border:`1.5px solid ${(statusColor[result.status]||C.sage)+"44"}`,borderRadius:14,padding:"18px" }}>
-              <div style={{ display:"flex",alignItems:"center",gap:14,marginBottom:14 }}>
-                <div style={{ textAlign:"center",flexShrink:0 }}>
-                  <div style={{ fontFamily:F.display,fontSize:32,fontWeight:800,color:statusColor[result.status]||C.sage,lineHeight:1 }}>{result.score}</div>
-                  <div style={{ fontFamily:F.body,fontSize:10,color:C.stone,textTransform:"uppercase",letterSpacing:"0.1em",fontWeight:600,marginTop:2 }}>BCS Score</div>
-                </div>
-                <div style={{ width:1,height:40,background:C.parchment }} />
-                <div>
-                  <Badge color={statusColor[result.status]||C.sage}>{result.status}</Badge>
-                  <div style={{ fontFamily:F.body,fontSize:11,color:C.stone,marginTop:6 }}>Ideal range: {result.ideal}</div>
-                </div>
-              </div>
-              <div style={{ fontFamily:F.body,fontSize:13,color:C.brown,lineHeight:1.65,marginBottom:10 }}>{result.assessment}</div>
-              {result.recommendation && <div style={{ fontFamily:F.body,fontSize:12,color:C.stone,fontStyle:"italic" }}>💡 {result.recommendation}</div>}
+          <input ref={inputRef} type="file" accept="image/*" capture="environment" style={{ display:"none" }} onChange={analyze} />
+
+          {loading && (
+            <div style={{ textAlign:"center",padding:"20px 0",fontFamily:F.body,fontSize:13,color:C.stone }}>
+              🔍 Examining photo…
             </div>
           )}
+
+          {error && (
+            <div style={{ fontFamily:F.body,fontSize:13,color:C.terracotta,padding:"12px 14px",background:C.terracotta+"10",borderRadius:10,lineHeight:1.5 }}>{error}</div>
+          )}
+
+          {result && result.raw && (
+            <div style={{ background:C.cream,border:`1px solid ${C.parchment}`,borderRadius:12,padding:"14px 16px" }}>
+              <div style={{ fontFamily:F.body,fontSize:11,color:C.stone,textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:8 }}>AI Analysis</div>
+              <div style={{ fontFamily:F.body,fontSize:13,color:C.brown,lineHeight:1.7,whiteSpace:"pre-wrap" }}>{result.raw}</div>
+            </div>
+          )}
+
+          {result && result.score !== null && !result.raw && (() => {
+            const pct = typeof result.score === "number" ? (result.score / result.outOf) * 100 : null;
+            return (
+              <div style={{ background:`${sColor}10`,border:`1.5px solid ${sColor}44`,borderRadius:14,padding:"18px 18px 16px" }}>
+
+                {/* Score header */}
+                <div style={{ display:"flex",alignItems:"center",gap:14,marginBottom:16 }}>
+                  <div style={{ textAlign:"center",flexShrink:0,minWidth:64 }}>
+                    <div style={{ fontFamily:F.display,fontSize:38,fontWeight:800,color:sColor,lineHeight:1 }}>{result.score}</div>
+                    <div style={{ fontFamily:F.body,fontSize:11,color:C.stone,fontWeight:700,marginTop:2 }}>out of {result.outOf}</div>
+                  </div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6 }}>
+                      <Badge color={sColor}>{result.status || "Assessed"}</Badge>
+                      <span style={{ fontFamily:F.body,fontSize:11,color:C.stone }}>Ideal: {result.ideal}</span>
+                    </div>
+                    {pct !== null && (
+                      <div style={{ height:8,background:C.parchment,borderRadius:100,overflow:"hidden" }}>
+                        <div style={{ height:"100%",width:`${Math.min(100,pct)}%`,background:`linear-gradient(90deg,${sColor}99,${sColor})`,borderRadius:100,transition:"width 0.6s ease" }} />
+                      </div>
+                    )}
+                    <div style={{ display:"flex",justifyContent:"space-between",fontFamily:F.body,fontSize:10,color:C.pebble,marginTop:3 }}>
+                      <span>1</span><span style={{ color:C.sage,fontWeight:700 }}>Ideal</span><span>{result.outOf}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Assessment */}
+                {result.assessment && (
+                  <div style={{ fontFamily:F.body,fontSize:13,color:C.brown,lineHeight:1.7,marginBottom:10,paddingTop:10,borderTop:`1px solid ${sColor}22` }}>
+                    {result.assessment}
+                  </div>
+                )}
+
+                {/* Recommendation */}
+                {result.recommendation && (
+                  <div style={{ display:"flex",gap:8,alignItems:"flex-start",background:sColor+"18",borderRadius:8,padding:"10px 12px" }}>
+                    <span style={{ flexShrink:0 }}>💡</span>
+                    <div style={{ fontFamily:F.body,fontSize:12,color:C.dark,lineHeight:1.6 }}>{result.recommendation}</div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           {!result && !error && !loading && (
-            <div style={{ fontFamily:F.body,fontSize:12,color:C.pebble,textAlign:"center",padding:"12px 0" }}>Upload a clear side-view photo of {animal.name} for an AI body condition score</div>
+            <div style={{ fontFamily:F.body,fontSize:12,color:C.pebble,textAlign:"center",padding:"16px 0",lineHeight:1.6 }}>
+              📷 Upload a clear side-view photo of {animal.name} for an AI body condition score<br/>
+              <span style={{ fontSize:11,opacity:0.7 }}>Best results: natural light, full side profile visible</span>
+            </div>
           )}
         </div>
       );
