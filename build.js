@@ -1,73 +1,76 @@
 /**
  * PasturePal build script
- * Compiles the JSX in PasturePal.html to plain JavaScript so mobile devices
- * don't need to run Babel in the browser.
- * Run: node build.js
+ * Compiles the JSX in PasturePal.html to plain JS so no browser-side Babel is needed.
  */
 
 const fs   = require('fs');
 const path = require('path');
-const babel = require('@babel/core');
 
 const SRC = path.join(__dirname, 'PasturePal.html');
+
+if (!fs.existsSync(SRC)) {
+  console.error('ERROR: PasturePal.html not found at', SRC);
+  process.exit(1);
+}
+
 let html = fs.readFileSync(SRC, 'utf8');
+console.log('Read PasturePal.html:', Math.round(html.length / 1024) + 'KB');
 
-// ── Find the <script type="text/babel"> block ──────────────────────────────
-const OPEN_TAG  = '<script type="text/babel">';
-const CLOSE_TAG = '</script>';
-
+// ── Find <script type="text/babel"> block ─────────────────────────────────
+const OPEN_TAG = '<script type="text/babel">';
 const blockStart = html.indexOf(OPEN_TAG);
+
 if (blockStart === -1) {
-  console.log('ℹ️  No <script type="text/babel"> found — nothing to compile.');
+  console.log('No <script type="text/babel"> found — already compiled, skipping.');
   process.exit(0);
 }
 
 const contentStart = blockStart + OPEN_TAG.length;
-const closeIdx     = html.indexOf(CLOSE_TAG, contentStart);
+const closeIdx = html.indexOf('</script>', contentStart);
 if (closeIdx === -1) {
-  console.error('❌  Could not find closing </script> for text/babel block.');
+  console.error('ERROR: Could not find closing </script>');
   process.exit(1);
 }
-const blockEnd  = closeIdx + CLOSE_TAG.length;
+
 const jsxSource = html.slice(contentStart, closeIdx);
+console.log('Found JSX block:', Math.round(jsxSource.length / 1024) + 'KB — compiling...');
 
-console.log(`📦  Compiling ${Math.round(jsxSource.length / 1024)}KB of JSX…`);
+// ── Compile with Babel ────────────────────────────────────────────────────
+let babel;
+try {
+  babel = require('@babel/core');
+} catch (e) {
+  console.error('ERROR: @babel/core not found. Did npm install succeed?', e.message);
+  process.exit(1);
+}
 
-// ── Compile JSX → ES5 ──────────────────────────────────────────────────────
 let compiled;
 try {
   const result = babel.transformSync(jsxSource, {
     presets: [
-      ['@babel/preset-env', {
-        targets: { browsers: ['> 0.5%', 'last 2 versions', 'iOS >= 13'] },
-        modules: false
-      }],
-      ['@babel/preset-react', { runtime: 'classic' }]
-    ],
-    compact: false,
-    comments: false
+      ['@babel/preset-env', { targets: 'defaults' }],
+      ['@babel/preset-react']
+    ]
   });
   compiled = result.code;
 } catch (err) {
-  console.error('❌  Babel compile error:\n', err.message);
+  console.error('ERROR: Babel compile failed:\n', err.message);
   process.exit(1);
 }
 
-console.log(`✅  Compiled to ${Math.round(compiled.length / 1024)}KB of plain JS`);
+console.log('Compiled to:', Math.round(compiled.length / 1024) + 'KB');
 
-// ── Rebuild the HTML ───────────────────────────────────────────────────────
-// Replace the text/babel block with a regular script block
+// ── Write compiled HTML ───────────────────────────────────────────────────
+const blockEnd = closeIdx + '</script>'.length;
 let output = html.slice(0, blockStart)
-  + '<script>\n'
-  + compiled
-  + '\n</script>'
+  + '<script>\n' + compiled + '\n</script>'
   + html.slice(blockEnd);
 
-// Remove the Babel standalone CDN tag — no longer needed
+// Remove Babel standalone CDN tag — no longer needed
 output = output.replace(
   /[ \t]*<script src="https:\/\/unpkg\.com\/@babel\/standalone[^"]*"><\/script>\n?/,
   ''
 );
 
 fs.writeFileSync(SRC, output);
-console.log('🚀  PasturePal.html updated — Babel standalone removed, phone-ready!');
+console.log('SUCCESS: PasturePal.html compiled and saved.');
