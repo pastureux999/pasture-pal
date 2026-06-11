@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8"/>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Lato:wght@400;600;700&display=swap');
+
+  body {
+    width: 1024px;
+    height: 500px;
+    overflow: hidden;
+    background: #2C4A2E;
+    font-family: 'Lato', sans-serif;
+  }
+
+  .wrap {
+    width: 1024px;
+    height: 500px;
+    position: relative;
+    background: linear-gradient(135deg, #2C4A2E 0%, #3D6B40 40%, #4D7057 100%);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+  }
+
+  /* Decorative background circles */
+  .bg-circle {
+    position: absolute;
+    border-radius: 50%;
+    opacity: 0.08;
+    background: #F7F0DC;
+  }
+  .c1 { width: 500px; height: 500px; top: -150px; right: -100px; }
+  .c2 { width: 280px; height: 280px; bottom: -80px; left: 60px; }
+  .c3 { width: 160px; height: 160px; top: 20px; left: 340px; }
+
+  /* Grain texture overlay */
+  .grain {
+    position: absolute; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    opacity: 0.4;
+    pointer-events: none;
+  }
+
+  /* Left content */
+  .left {
+    position: relative;
+    z-index: 2;
+    padding: 0 0 0 72px;
+    flex: 1;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(247,240,220,0.15);
+    border: 1px solid rgba(247,240,220,0.3);
+    border-radius: 100px;
+    padding: 5px 14px;
+    margin-bottom: 20px;
+  }
+  .badge span {
+    font-family: 'Lato', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #F7F0DC;
+    opacity: 0.85;
+  }
+
+  .logo-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+  .logo-text {
+    font-family: 'Playfair Display', serif;
+    font-size: 52px;
+    font-weight: 800;
+    color: #F7F0DC;
+    line-height: 1;
+    letter-spacing: -0.01em;
+  }
+  .logo-text span { color: #A8C5A0; }
+
+  .tagline {
+    font-family: 'Lato', sans-serif;
+    font-size: 18px;
+    font-weight: 400;
+    color: rgba(247,240,220,0.75);
+    margin-bottom: 30px;
+    line-height: 1.4;
+    max-width: 340px;
+  }
+
+  .pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    max-width: 400px;
+  }
+  .pill {
+    background: rgba(247,240,220,0.12);
+    border: 1px solid rgba(247,240,220,0.22);
+    border-radius: 100px;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #F7F0DC;
+    letter-spacing: 0.02em;
+  }
+
+  /* Right — mock phone screen */
+  .right {
+    position: relative;
+    z-index: 2;
+    width: 340px;
+    flex-shrink: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding-right: 48px;
+  }
+
+  .phone {
+    width: 220px;
+    height: 420px;
+    background: #F7F0DC;
+    border-radius: 32px;
+    box-shadow: 0 32px 80px rgba(0,0,0,0.45), 0 0 0 1.5px rgba(255,255,255,0.12);
+    overflow: hidden;
+    position: relative;
+    transform: rotate(3deg);
+  }
+
+  .phone-header {
+    background: linear-gradient(135deg, #3D6B40, #4D7057);
+    padding: 18px 14px 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .phone-logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: #F7F0DC;
+  }
+  .phone-logo span { color: #A8C5A0; }
+  .phone-sub {
+    font-size: 9px;
+    color: rgba(247,240,220,0.65);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-left: auto;
+  }
+
+  .phone-body {
+    padding: 12px 12px 8px;
+    background: #F7F0DC;
+  }
+
+  .farm-banner {
+    background: linear-gradient(135deg, #4D7057, #3D6B40);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .farm-name {
+    font-family: 'Playfair Display', serif;
+    font-size: 12px;
+    font-weight: 700;
+    color: #F7F0DC;
+  }
+  .farm-type {
+    font-size: 8px;
+    color: rgba(247,240,220,0.7);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .pro-badge {
+    margin-left: auto;
+    background: rgba(247,240,220,0.2);
+    border-radius: 100px;
+    padding: 2px 7px;
+    font-size: 8px;
+    font-weight: 700;
+    color: #F7F0DC;
+    letter-spacing: 0.05em;
+  }
+
+  .animal-row {
+    background: white;
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .animal-emoji { font-size: 18px; }
+  .animal-name { font-size: 10px; font-weight: 700; color: #3D3028; }
+  .animal-detail { font-size: 8px; color: #8B7355; }
+  .animal-chip {
+    margin-left: auto;
+    background: #EAF2EB;
+    color: #3D6B40;
+    font-size: 7px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 100px;
+    letter-spacing: 0.04em;
+  }
+
+  .chat-bubble {
+    background: linear-gradient(135deg, #4D7057, #3D6B40);
+    border-radius: 10px 10px 10px 3px;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+  }
+  .chat-text {
+    font-size: 8px;
+    color: #F7F0DC;
+    line-height: 1.5;
+  }
+
+  .tabs {
+    display: flex;
+    border-top: 1px solid #E8DEC8;
+    padding: 6px 0 0;
+    gap: 2px;
+  }
+  .tab {
+    flex: 1;
+    text-align: center;
+    font-size: 7px;
+    font-weight: 600;
+    color: #B5A48A;
+    padding: 2px 0;
+  }
+  .tab.active { color: #4D7057; }
+  .tab-icon { font-size: 13px; display: block; }
+
+  /* Cow SVG watermark */
+  .cow-bg {
+    position: absolute;
+    bottom: -20px;
+    left: 200px;
+    opacity: 0.04;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bg-circle c1"></div>
+  <div class="bg-circle c2"></div>
+  <div class="bg-circle c3"></div>
+  <div class="grain"></div>
+
+  <!-- Big cow watermark -->
+  <svg class="cow-bg" width="320" height="320" viewBox="0 0 100 100" fill="none">
+    <ellipse cx="50" cy="62" rx="28" ry="20" fill="#F7F0DC"/>
+    <ellipse cx="50" cy="44" rx="18" ry="16" fill="#F7F0DC"/>
+    <ellipse cx="41" cy="33" rx="7" ry="10" fill="#F7F0DC"/>
+    <ellipse cx="59" cy="33" rx="7" ry="10" fill="#F7F0DC"/>
+    <ellipse cx="38" cy="24" rx="4" ry="6" fill="#F7F0DC"/>
+    <ellipse cx="62" cy="24" rx="4" ry="6" fill="#F7F0DC"/>
+    <rect x="36" y="78" width="7" height="14" rx="3" fill="#F7F0DC"/>
+    <rect x="49" y="78" width="7" height="14" rx="3" fill="#F7F0DC"/>
+    <rect x="57" y="78" width="7" height="14" rx="3" fill="#F7F0DC"/>
+    <rect x="29" y="78" width="7" height="14" rx="3" fill="#F7F0DC"/>
+  </svg>
+
+  <!-- Left content -->
+  <div class="left">
+    <div class="badge">
+      <span>🐄 &nbsp;Homestead Assistant</span>
+    </div>
+    <div class="logo-row">
+      <div class="logo-text">Pasture<span>Pal</span></div>
+    </div>
+    <div class="tagline">Your AI-powered farm manager for<br>livestock, garden & homestead.</div>
+    <div class="pills">
+      <div class="pill">🐄 Livestock Tracker</div>
+      <div class="pill">🌱 Garden Planner</div>
+      <div class="pill">🤖 AI Assistant</div>
+      <div class="pill">📊 Farm Finances</div>
+      <div class="pill">🌦 Weather Alerts</div>
+    </div>
+  </div>
+
+  <!-- Right — phone mockup -->
+  <div class="right">
+    <div class="phone">
+      <div class="phone-header">
+        <div>
+          <div class="phone-logo">Pasture<span>Pal</span></div>
+        </div>
+        <div class="phone-sub">My Herd</div>
+      </div>
+      <div class="phone-body">
+        <div class="farm-banner">
+          <div>
+            <div class="farm-name">Sunny Acres Farm</div>
+            <div class="farm-type">Small Ranch · 78212</div>
+          </div>
+          <div class="pro-badge">PRO</div>
+        </div>
+        <div class="animal-row">
+          <div class="animal-emoji">🐄</div>
+          <div>
+            <div class="animal-name">Bessie</div>
+            <div class="animal-detail">Holstein · 3 yrs · 1,180 lbs</div>
+          </div>
+          <div class="animal-chip">Due Jul 14</div>
+        </div>
+        <div class="animal-row">
+          <div class="animal-emoji">🐐</div>
+          <div>
+            <div class="animal-name">Clover</div>
+            <div class="animal-detail">Nubian Goat · 2 yrs</div>
+          </div>
+          <div class="animal-chip">BCS 3.0</div>
+        </div>
+        <div class="chat-bubble">
+          <div class="chat-text">🤖 Based on Clover's weight and breed, I'd recommend increasing hay ration by 10% going into summer...</div>
+        </div>
+        <div class="tabs">
+          <div class="tab active"><span class="tab-icon">🐄</span>Herd</div>
+          <div class="tab"><span class="tab-icon">🌱</span>Garden</div>
+          <div class="tab"><span class="tab-icon">🏡</span>Farm</div>
+          <div class="tab"><span class="tab-icon">🤖</span>AI</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
