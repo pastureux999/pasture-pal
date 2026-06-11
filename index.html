@@ -258,6 +258,19 @@
     .footer-link:hover { color:var(--stone); }
     .footer-copy { font-size:11px;color:var(--pebble);width:100%;text-align:center; }
 
+    /* ── Mobile nav CTA ── */
+    .nav-mobile-cta { display:none; gap:8px; align-items:center; }
+    .nav-mobile-cta .btn { display:flex !important; }
+
+    /* ── PWA install strip ── */
+    .pwa-strip { background:linear-gradient(135deg,#2C4A2E,#3D6B40);padding:0;overflow:hidden; }
+    .pwa-inner { max-width:1060px;margin:0 auto;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap; }
+    .pwa-steps { display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap; }
+    .pwa-step  { display:flex;align-items:flex-start;gap:10px; }
+    .pwa-step-num { width:22px;height:22px;border-radius:50%;background:rgba(247,240,220,0.2);color:#F7F0DC;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px; }
+    .pwa-step-text { font-size:12px;color:rgba(247,240,220,0.85);line-height:1.45; }
+    .pwa-step-text strong { color:#F7F0DC;display:block;margin-bottom:1px; }
+
     /* ── Responsive ── */
     @media(max-width:640px) {
       section { padding:56px 0; }
@@ -265,7 +278,10 @@
       .step-arrow { display:none; }
       .cta-band { padding:48px 24px;margin:0 16px;border-radius:20px; }
       nav .btn { display:none; }
+      .nav-links { display:none; }
+      .nav-mobile-cta { display:flex; }
       .stat-item { border-right:none;border-bottom:1px solid var(--parch); }
+      .pwa-steps { flex-direction:column;gap:12px; }
     }
   </style>
 </head>
@@ -301,8 +317,51 @@
       <a href="PasturePal.html" class="btn btn--ghost" style="padding:9px 20px;font-size:12px;border-radius:100px;color:var(--stone);border-color:var(--parch);background:transparent;">Sign In</a>
       <a href="PasturePal.html" class="btn btn--primary" style="padding:9px 20px;font-size:12px;border-radius:100px;">Start Free</a>
     </div>
+    <!-- Mobile-only nav buttons -->
+    <div class="nav-mobile-cta">
+      <a href="PasturePal.html" class="btn btn--ghost" style="padding:8px 16px;font-size:12px;border-radius:100px;color:var(--stone);border:1.5px solid var(--parch);background:transparent;text-decoration:none;font-family:'Lato',sans-serif;font-weight:600;">Sign In</a>
+      <a href="PasturePal.html" class="btn btn--primary" style="padding:8px 18px;font-size:12px;border-radius:100px;text-decoration:none;font-family:'Lato',sans-serif;font-weight:700;">Start Free</a>
+    </div>
   </div>
 </nav>
+
+<!-- ── PWA Install Strip ── -->
+<div class="pwa-strip">
+  <div class="pwa-inner">
+    <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
+      <span style="font-size:22px;">📱</span>
+      <div>
+        <div style="font-family:'Playfair Display',serif;font-size:14px;font-weight:700;color:#F7F0DC;line-height:1.2;">Use it like a native app</div>
+        <div style="font-size:11px;color:rgba(247,240,220,0.65);margin-top:1px;">No download needed — add to your home screen in seconds</div>
+      </div>
+    </div>
+    <div class="pwa-steps">
+      <div style="font-size:11px;color:rgba(247,240,220,0.5);font-weight:700;letter-spacing:0.08em;text-transform:uppercase;align-self:center;flex-shrink:0;">iPhone</div>
+      <div class="pwa-step">
+        <div class="pwa-step-num">1</div>
+        <div class="pwa-step-text"><strong>Open in Safari</strong>Tap the Share button <span style="font-size:13px;">⎙</span> at the bottom</div>
+      </div>
+      <div class="pwa-step">
+        <div class="pwa-step-num">2</div>
+        <div class="pwa-step-text"><strong>Add to Home Screen</strong>Scroll down and tap it</div>
+      </div>
+      <div class="pwa-step">
+        <div class="pwa-step-num">3</div>
+        <div class="pwa-step-text"><strong>Tap Add</strong>PasturePal appears on your home screen 🐄</div>
+      </div>
+      <div style="width:1px;background:rgba(247,240,220,0.15);align-self:stretch;margin:0 4px;" class="pwa-divider"></div>
+      <div style="font-size:11px;color:rgba(247,240,220,0.5);font-weight:700;letter-spacing:0.08em;text-transform:uppercase;align-self:center;flex-shrink:0;">Android</div>
+      <div class="pwa-step">
+        <div class="pwa-step-num">1</div>
+        <div class="pwa-step-text"><strong>Open in Chrome</strong>Tap the ⋮ menu (top right)</div>
+      </div>
+      <div class="pwa-step">
+        <div class="pwa-step-num">2</div>
+        <div class="pwa-step-text"><strong>Add to Home Screen</strong>Tap and confirm</div>
+      </div>
+    </div>
+  </div>
+</div>
 
 
 <!-- ── Hero ── -->
@@ -892,6 +951,17 @@
   </div>
 </section>
 
+
+<!-- ── App Coming Soon ── -->
+<div style="background:var(--dark);padding:18px 24px;text-align:center;">
+  <div style="max-width:1060px;margin:0 auto;display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;">
+    <span style="font-size:18px;">📲</span>
+    <span style="font-family:'Playfair Display',serif;font-size:15px;font-weight:700;color:var(--cream);">Native iOS &amp; Android apps coming soon</span>
+    <span style="color:rgba(245,237,216,0.3);font-size:12px;">·</span>
+    <span style="font-family:'Lato',sans-serif;font-size:13px;color:rgba(245,237,216,0.65);">For now, add to your home screen below — works just like an app 🐄</span>
+    <span style="background:rgba(168,197,160,0.2);border:1px solid rgba(168,197,160,0.4);border-radius:100px;padding:3px 12px;font-family:'Lato',sans-serif;font-size:11px;font-weight:700;color:#A8C5A0;letter-spacing:0.06em;">COMING SOON</span>
+  </div>
+</div>
 
 <!-- ── Pricing ── -->
 <section id="pricing">
