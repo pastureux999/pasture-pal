@@ -17,12 +17,6 @@
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js').catch(() => {});
       });
-      // When a new service worker activates and claims this page, reload to get fresh HTML
-      navigator.serviceWorker.addEventListener('message', event => {
-        if (event.data && event.data.type === 'SW_UPDATED') {
-          window.location.reload();
-        }
-      });
     }
   </script>
 

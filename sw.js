@@ -1,4 +1,4 @@
-const CACHE_NAME = "pasturepal-v4";
+const CACHE_NAME = "pasturepal-v5";
 const PRECACHE = [
   "/manifest.json",
   "/icons/icon-192.png",
@@ -13,22 +13,12 @@ self.addEventListener("install", event => {
   self.skipWaiting();
 });
 
-// Activate: delete ALL old caches, claim clients, then tell them to reload
+// Activate: delete ALL old caches so stale app files are cleared immediately
 self.addEventListener("activate", event => {
   event.waitUntil(
-    caches.keys()
-      .then(keys =>
-        Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-      )
-      .then(() => self.clients.claim())
-      .then(() =>
-        // Tell all open tabs to reload so they pick up the fresh compiled HTML
-        self.clients.matchAll({ type: "window" }).then(clients => {
-          clients.forEach(client => {
-            client.postMessage({ type: "SW_UPDATED" });
-          });
-        })
-      )
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
+    ).then(() => self.clients.claim())
   );
 });
 
@@ -54,14 +44,13 @@ self.addEventListener("fetch", event => {
     event.respondWith(
       fetch(event.request)
         .then(response => {
-          // Cache a copy for offline fallback
           if (response && response.status === 200) {
             const clone = response.clone();
             caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
           }
           return response;
         })
-        .catch(() => caches.match(event.request)) // offline fallback
+        .catch(() => caches.match(event.request))
     );
     return;
   }
