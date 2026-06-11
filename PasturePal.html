@@ -2034,7 +2034,7 @@ Now do the same for the animal in the attached photo. Use the same format, repla
               {loading ? "Analyzing…" : result ? "Re-analyze" : "Upload Photo"}
             </Btn>
           </div>
-          <input ref={inputRef} type="file" accept="image/*" capture="environment" style={{ display:"none" }} onChange={analyze} />
+          <input ref={inputRef} type="file" accept="image/*" style={{ display:"none" }} onChange={analyze} />
 
           {loading && (
             <div style={{ textAlign:"center",padding:"20px 0",fontFamily:F.body,fontSize:13,color:C.stone }}>
@@ -3611,8 +3611,9 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
 
       // Auth + sync state
       const [user, setUser]             = useState(null);
-      const [showAuth, setShowAuth]     = useState(false);
-      const [syncStatus, setSyncStatus] = useState("idle"); // idle|pending|syncing|synced|error|offline
+      const [showAuth, setShowAuth]       = useState(false);
+      const [showInstall, setShowInstall] = useState(false);
+      const [syncStatus, setSyncStatus]   = useState("idle"); // idle|pending|syncing|synced|error|offline
       const syncTimerRef                = React.useRef(null);
 
       const [notifState, setNotifState]     = useState(canNotify() ? Notification.permission : "denied");
@@ -4009,6 +4010,8 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
               <a href="privacy.html" style={{ fontFamily: F.body, fontSize: 10, color: C.pebble, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 500, textDecoration: "none" }}>Privacy</a>
               <span style={{ color: C.parchment, fontSize: 10 }}>·</span>
               <a href="mailto:support@mypasturepal.com" style={{ fontFamily: F.body, fontSize: 10, color: C.pebble, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 500, textDecoration: "none" }}>Support</a>
+              <span style={{ color: C.parchment, fontSize: 10 }}>·</span>
+              <button onClick={() => setShowInstall(true)} style={{ fontFamily: F.body, fontSize: 10, color: C.sage, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600, textDecoration: "none", background: "none", border: "none", cursor: "pointer", padding: 0 }}>📲 Add as App</button>
             </footer>
           )}
 
@@ -4021,6 +4024,59 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
 
           {/* ── Modals ── */}
           {showAuth && supabase && <AuthModal onClose={() => setShowAuth(false)} onSuccess={() => {}} />}
+
+          {showInstall && (() => {
+            const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+            const isAndroid = /android/i.test(navigator.userAgent);
+            const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;
+            const Step = ({ n, title, desc }) => (
+              <div style={{ display:"flex", gap:12, alignItems:"flex-start", marginBottom:14 }}>
+                <div style={{ width:26, height:26, borderRadius:"50%", background:C.sage, color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>{n}</div>
+                <div>
+                  <div style={{ fontFamily:F.body, fontSize:14, fontWeight:700, color:C.dark, marginBottom:2 }}>{title}</div>
+                  <div style={{ fontFamily:F.body, fontSize:13, color:C.stone, lineHeight:1.55 }}>{desc}</div>
+                </div>
+              </div>
+            );
+            return (
+              <Modal title="📲 Add PasturePal as an App" onClose={() => setShowInstall(false)}>
+                {isStandalone ? (
+                  <div style={{ textAlign:"center", padding:"16px 0 8px" }}>
+                    <div style={{ fontSize:48, marginBottom:12 }}>✅</div>
+                    <div style={{ fontFamily:F.display, fontSize:18, fontWeight:700, color:C.dark, marginBottom:8 }}>Already installed!</div>
+                    <div style={{ fontFamily:F.body, fontSize:14, color:C.stone, lineHeight:1.6 }}>PasturePal is running as an installed app. You're all set.</div>
+                  </div>
+                ) : (
+                  <div>
+                    <p style={{ fontFamily:F.body, fontSize:14, color:C.stone, lineHeight:1.6, marginBottom:20 }}>
+                      Add PasturePal to your home screen for one-tap access — it works just like a native app, with no download required.
+                    </p>
+
+                    {/* iOS instructions — shown first on iPhone, second on Android */}
+                    <div style={{ background: isAndroid ? C.cream : `${C.sage}12`, border:`1.5px solid ${isAndroid ? C.parchment : C.sage+"44"}`, borderRadius:14, padding:"16px 18px", marginBottom:14 }}>
+                      <div style={{ fontFamily:F.body, fontSize:11, fontWeight:700, letterSpacing:"0.1em", textTransform:"uppercase", color: isAndroid ? C.pebble : C.sage, marginBottom:14 }}>
+                        🍎 iPhone / iPad (Safari)
+                      </div>
+                      <Step n="1" title="Open in Safari" desc='Make sure you\'re using Safari — it won\'t work from Chrome or other browsers on iPhone.' />
+                      <Step n="2" title='Tap the Share button ⎙' desc="Find the share icon at the bottom of Safari (it looks like a box with an arrow pointing up)." />
+                      <Step n="3" title="Tap Add to Home Screen" desc="Scroll down in the share sheet and tap Add to Home Screen." />
+                      <Step n="4" title="Tap Add" desc="Confirm by tapping Add in the top right. PasturePal will appear on your home screen! 🐄" />
+                    </div>
+
+                    <div style={{ background: isIOS ? C.cream : `${C.sage}12`, border:`1.5px solid ${isIOS ? C.parchment : C.sage+"44"}`, borderRadius:14, padding:"16px 18px" }}>
+                      <div style={{ fontFamily:F.body, fontSize:11, fontWeight:700, letterSpacing:"0.1em", textTransform:"uppercase", color: isIOS ? C.pebble : C.sage, marginBottom:14 }}>
+                        🤖 Android (Chrome)
+                      </div>
+                      <Step n="1" title="Open in Chrome" desc="Make sure you're using Chrome on your Android device." />
+                      <Step n="2" title="Tap the ⋮ menu" desc="Tap the three-dot menu in the top right corner of Chrome." />
+                      <Step n="3" title="Tap Add to Home Screen" desc="Select Add to Home Screen from the menu." />
+                      <Step n="4" title="Tap Add" desc="Confirm and PasturePal will appear on your home screen like any other app. 🐄" />
+                    </div>
+                  </div>
+                )}
+              </Modal>
+            );
+          })()}
           {showAdd      && <AddAnimalModal onSave={addAnimal} onClose={() => setShowAdd(false)} canAdd={isPro || animals.length < FREE_LIMIT} />}
           {showUpgrade  && <UpgradeModal onClose={() => setShowUpgrade(false)} onUpgrade={() => setIsPro(true)} />}
           {showGestation    && <GestationModal animals={animals} onClose={() => setShowGestation(false)} onAddReminder={(animalId, r) => { setAnimals(p => p.map(a => a.id === animalId ? { ...a, reminders: [...(a.reminders||[]), r] } : a)); }} />}
