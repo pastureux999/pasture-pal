@@ -64,9 +64,10 @@ let output = html.slice(0, blockStart)
   + '<script>\n' + compiled + '\n</script>'
   + html.slice(blockEnd);
 
-// Remove Babel standalone CDN tag — no longer needed
+// Remove Babel standalone CDN tag — no longer needed after compilation
+// Matches any CDN URL containing "babel" (covers unpkg, cdnjs, etc.)
 output = output.replace(
-  /[ \t]*<script src="https:\/\/unpkg\.com\/@babel\/standalone[^"]*"><\/script>\n?/,
+  /[ \t]*<script src="https:\/\/[^"]*babel[^"]*"[^>]*><\/script>\n?/i,
   ''
 );
 
