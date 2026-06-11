@@ -1,12 +1,11 @@
-const CACHE_NAME = "pasturepal-v1";
+const CACHE_NAME = "pasturepal-v3";
 const PRECACHE = [
-  "/PasturePal.html",
   "/manifest.json",
   "/icons/icon-192.png",
   "/icons/icon-512.png"
 ];
 
-// Install: cache core assets
+// Install: cache only static assets (NOT the app HTML — always fetch fresh)
 self.addEventListener("install", event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(PRECACHE))
@@ -14,7 +13,7 @@ self.addEventListener("install", event => {
   self.skipWaiting();
 });
 
-// Activate: clean up old caches
+// Activate: delete ALL old caches so stale app files are cleared immediately
 self.addEventListener("activate", event => {
   event.waitUntil(
     caches.keys().then(keys =>
@@ -24,11 +23,14 @@ self.addEventListener("activate", event => {
   self.clients.claim();
 });
 
-// Fetch: network-first for API calls, cache-first for assets
+// Fetch strategy:
+//   - HTML pages  → network-first (always get latest app code)
+//   - API / external → network-only
+//   - Other assets (icons, manifest) → cache-first
 self.addEventListener("fetch", event => {
   const url = new URL(event.request.url);
 
-  // Always go network-first for API, Supabase, Stripe, and external calls
+  // Network-only for API, Supabase, Stripe, analytics, and other external calls
   const isExternal =
     url.hostname !== self.location.hostname ||
     url.pathname.startsWith("/api/");
@@ -38,7 +40,24 @@ self.addEventListener("fetch", event => {
     return;
   }
 
-  // Cache-first for local assets
+  // Network-first for all HTML so app updates are always picked up
+  if (event.request.destination === "document" || url.pathname.endsWith(".html") || url.pathname === "/") {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          // Cache a copy for offline fallback
+          if (response && response.status === 200) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match(event.request)) // offline fallback
+    );
+    return;
+  }
+
+  // Cache-first for icons, manifest, and other static assets
   event.respondWith(
     caches.match(event.request).then(cached => {
       if (cached) return cached;
