@@ -2256,6 +2256,21 @@ Write in warm farm-journal style, under 220 words. Include: a greeting with toda
       const allRem  = animals.flatMap(a => (a.reminders || []).filter(r => { const d = daysUntil(r.due); return d !== null && d <= 14 && d >= 0; }).map(r => ({ ...r, animalName: a.name })));
       const alerts  = [...allMeds.map(m => ({ text: `${m.animalName}: ${m.name}`, due: m.due, type: "med" })), ...allRem.map(r => ({ text: `${r.animalName}: ${r.text}`, due: r.due, type: r.type || "custom" }))].sort((a, b) => new Date(a.due) - new Date(b.due));
       const overdueCount = alerts.filter(a => daysUntil(a.due) < 0).length;
+      const [searchQuery, setSearchQuery] = useState("");
+      const filteredAnimals = searchQuery.trim()
+        ? animals.filter(a => {
+            const q = searchQuery.toLowerCase();
+            return (
+              (a.name        || "").toLowerCase().includes(q) ||
+              (a.tagId       || "").toLowerCase().includes(q) ||
+              (a.species     || "").toLowerCase().includes(q) ||
+              (a.breed       || "").toLowerCase().includes(q) ||
+              (a.sex         || "").toLowerCase().includes(q) ||
+              (a.color       || "").toLowerCase().includes(q) ||
+              (a.notes       || "").toLowerCase().includes(q)
+            );
+          })
+        : animals;
 
       return (
         <div style={{ display: "grid", gap: 16 }}>
@@ -2393,8 +2408,28 @@ Write in warm farm-journal style, under 220 words. Include: a greeting with toda
             </div>
           )}
 
+          {/* Search bar */}
+          {animals.length > 0 && (
+            <div style={{ position: "relative" }}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: C.stone, pointerEvents: "none" }}>
+                <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" strokeWidth="1.5"/>
+                <path d="M10.5 10.5L14 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+              <input
+                type="search"
+                placeholder={`Search ${animals.length} animal${animals.length !== 1 ? "s" : ""}…`}
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                style={{ width: "100%", padding: "11px 14px 11px 38px", borderRadius: 12, border: `1.5px solid ${C.parchment}`, background: C.offWhite, fontFamily: F.body, fontSize: 14, color: C.dark, outline: "none", boxSizing: "border-box" }}
+              />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery("")} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: C.stone, fontSize: 16, lineHeight: 1, padding: 2 }}>✕</button>
+              )}
+            </div>
+          )}
+
           {/* Animal cards */}
-          {animals.map(a => {
+          {filteredAnimals.map(a => {
             const medDue = (a.meds || []).some(m => { const d = daysUntil(m.due); return d !== null && d <= 14 && d >= 0; });
             const remDue = (a.reminders || []).some(r => { const d = daysUntil(r.due); return d !== null && d <= 7 && d >= 0; });
             return (
@@ -2416,6 +2451,11 @@ Write in warm farm-journal style, under 220 words. Include: a greeting with toda
               </Card>
             );
           })}
+          {searchQuery && filteredAnimals.length === 0 && (
+            <div style={{ textAlign: "center", padding: "32px 20px", color: C.stone, fontFamily: F.body, fontSize: 14 }}>
+              No animals match "<strong>{searchQuery}</strong>"
+            </div>
+          )}
         </div>
       );
     }
@@ -3704,6 +3744,9 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
       }, []);
 
       async function loadFromCloud(userId) {
+        // Block auto-sync while we load — prevents a stale local state from
+        // being upserted over valid cloud data before the fetch completes.
+        syncReadyRef.current = false;
         setSyncStatus("syncing");
         try {
           const { data } = await supabase
@@ -3712,30 +3755,27 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
             .eq("user_id", userId)
             .maybeSingle();
           if (data?.data) {
-            const serverTs = new Date(data.updated_at).getTime();
-            const localTs  = parseInt(localStorage.getItem("pp_last_sync") || "0");
-            if (serverTs > localTs) {
-              const d = data.data;
-              if (d.animals    !== undefined) setAnimals(d.animals);
-              if (d.garden     !== undefined) setGarden(d.garden);
-              if (d.zipCode    !== undefined) setZipCode(d.zipCode);
-              if (d.gardenZone !== undefined) setGardenZone(d.gardenZone);
-              if (d.production !== undefined) setProduction(d.production);
-              if (d.finances   !== undefined) setFinances(d.finances);
-              if (d.pastures   !== undefined) setPastures(d.pastures);
-              if (d.rotations   !== undefined) setRotations(d.rotations);
-              if (d.isPro       !== undefined) setIsPro(d.isPro);
-              if (d.farmProfile !== undefined) setFarmProfile(d.farmProfile);
-              localStorage.setItem("pp_last_sync", serverTs.toString());
-            }
+            // Always trust cloud data — don't compare timestamps.
+            // A stale pp_last_sync on this device (e.g. phone that never
+            // synced before, or cleared cache) would otherwise silently block
+            // the cloud data from loading.
+            const d = data.data;
+            if (d.animals    !== undefined) setAnimals(d.animals);
+            if (d.garden     !== undefined) setGarden(d.garden);
+            if (d.zipCode    !== undefined) setZipCode(d.zipCode);
+            if (d.gardenZone !== undefined) setGardenZone(d.gardenZone);
+            if (d.production !== undefined) setProduction(d.production);
+            if (d.finances   !== undefined) setFinances(d.finances);
+            if (d.pastures   !== undefined) setPastures(d.pastures);
+            if (d.rotations  !== undefined) setRotations(d.rotations);
+            if (d.isPro      !== undefined) setIsPro(d.isPro);
+            if (d.farmProfile !== undefined) setFarmProfile(d.farmProfile);
+            localStorage.setItem("pp_last_sync", new Date(data.updated_at).getTime().toString());
           }
           setSyncStatus("synced");
         } catch {
           setSyncStatus("error");
         } finally {
-          // Only allow auto-sync to run AFTER we've finished loading from cloud.
-          // This prevents the 2500ms debounce timer from firing with empty local
-          // state and overwriting valid cloud data before the fetch completes.
           syncReadyRef.current = true;
         }
       }
@@ -3837,7 +3877,7 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
             </div>
             <div style={{ maxWidth: 640, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: 72, position: "relative" }}>
               {/* Wordmark */}
-              <a href="index.html" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
+              <a onClick={() => { setView("herd"); setSelected(null); }} style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", cursor: "pointer" }}>
                 <div style={{ width: 38, height: 38, borderRadius: 10, background: `linear-gradient(135deg, ${C.cream}, ${C.parchment})`, border: `1.5px solid ${C.parchment}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   <svg width="26" height="24" viewBox="0 0 26 24" fill="none">
                     <path d="M13 1.5L0.5 8.5H25.5L13 1.5Z" fill={C.brown} opacity="0.85"/>
@@ -4060,6 +4100,8 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
               <a href="mailto:support@mypasturepal.com" style={{ fontFamily: F.body, fontSize: 10, color: C.pebble, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 500, textDecoration: "none" }}>Support</a>
               <span style={{ color: C.parchment, fontSize: 10 }}>·</span>
               <button onClick={() => setShowInstall(true)} style={{ fontFamily: F.body, fontSize: 10, color: C.sage, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600, textDecoration: "none", background: "none", border: "none", cursor: "pointer", padding: 0 }}>📲 Add as App</button>
+              <span style={{ color: C.parchment, fontSize: 10 }}>·</span>
+              <a href="index.html" style={{ fontFamily: F.body, fontSize: 10, color: C.pebble, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 500, textDecoration: "none" }}>About</a>
             </footer>
           )}
 
