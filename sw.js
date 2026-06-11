@@ -1,4 +1,4 @@
-const CACHE_NAME = "pasturepal-v3";
+const CACHE_NAME = "pasturepal-v4";
 const PRECACHE = [
   "/manifest.json",
   "/icons/icon-192.png",
@@ -13,14 +13,23 @@ self.addEventListener("install", event => {
   self.skipWaiting();
 });
 
-// Activate: delete ALL old caches so stale app files are cleared immediately
+// Activate: delete ALL old caches, claim clients, then tell them to reload
 self.addEventListener("activate", event => {
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    )
+    caches.keys()
+      .then(keys =>
+        Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
+      )
+      .then(() => self.clients.claim())
+      .then(() =>
+        // Tell all open tabs to reload so they pick up the fresh compiled HTML
+        self.clients.matchAll({ type: "window" }).then(clients => {
+          clients.forEach(client => {
+            client.postMessage({ type: "SW_UPDATED" });
+          });
+        })
+      )
   );
-  self.clients.claim();
 });
 
 // Fetch strategy:
