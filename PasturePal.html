@@ -3615,6 +3615,7 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
       const [showInstall, setShowInstall] = useState(false);
       const [syncStatus, setSyncStatus]   = useState("idle"); // idle|pending|syncing|synced|error|offline
       const syncTimerRef                = React.useRef(null);
+      const syncReadyRef                = React.useRef(false); // blocks auto-sync until initial cloud load completes
 
       const [notifState, setNotifState]     = useState(canNotify() ? Notification.permission : "denied");
       const [showNotifBanner, setShowNotifBanner] = useState(false);
@@ -3646,11 +3647,12 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
 
       // ── Supabase auth init ──────────────────────────────────────────
       useEffect(() => {
-        if (!supabase) return;
+        if (!supabase) { syncReadyRef.current = true; return; } // no cloud — allow local saves immediately
         supabase.auth.getSession().then(({ data: { session } }) => {
           const u = session?.user ?? null;
           setUser(u);
           if (u) loadFromCloud(u.id);
+          else syncReadyRef.current = true; // not logged in — allow local saves immediately
         });
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
           const u = session?.user ?? null;
@@ -3689,12 +3691,17 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
           setSyncStatus("synced");
         } catch {
           setSyncStatus("error");
+        } finally {
+          // Only allow auto-sync to run AFTER we've finished loading from cloud.
+          // This prevents the 2500ms debounce timer from firing with empty local
+          // state and overwriting valid cloud data before the fetch completes.
+          syncReadyRef.current = true;
         }
       }
 
       // ── Auto-sync to cloud when data changes ───────────────────────
       useEffect(() => {
-        if (!supabase || !user) return;
+        if (!supabase || !user || !syncReadyRef.current) return;
         setSyncStatus("pending");
         if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
         syncTimerRef.current = setTimeout(async () => {
