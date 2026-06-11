@@ -2007,6 +2007,15 @@ IDEAL_RANGE: ${idealRange}
 Now do the same for the animal in the attached photo. Use the same format, replace all values with your real assessment.`;
 
             const text = await callAIWithImage(system, msg, base64, mediaType);
+
+            // Detect template/placeholder response — means AI didn't receive or couldn't process the image
+            const looksLikeTemplate = /\[1-\d\]|\[2 sentences\]|\[1 sentence\]|\[Underweight\|/.test(text);
+            if (looksLikeTemplate || !text.trim()) {
+              setError("Photo couldn't be analyzed. Please try a clear side-view photo in good lighting (JPEG or PNG works best).");
+              setLoading(false);
+              return;
+            }
+
             const scoreRaw = parse(text, "SCORE");
             const scoreNum = parseFloat(scoreRaw);
             const status   = parse(text, "STATUS");
