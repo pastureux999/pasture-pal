@@ -1802,7 +1802,10 @@ Use this data to give specific, personal answers. Be warm and practical. Always 
       const [msgs, setMsgs] = useState([{ role: "assistant", content: `Hi! I'm ${animal.name}'s personal AI. I already know ${animal.name}'s full history — weight records, medications, reminders, and more. What would you like to know? 🌿` }]);
       const [input, setInput] = useState("");
       const [loading, setLoading] = useState(false);
+      const [pendingImg, setPendingImg] = useState(null); // { base64, mediaType, preview }
       const bottomRef = useRef();
+      const fileRef   = useRef();
+      const cameraRef = useRef();
       useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs]);
 
       if (!isPro) return (
@@ -1814,17 +1817,37 @@ Use this data to give specific, personal answers. Be warm and practical. Always 
         </div>
       );
 
+      const loadImg = (file, cb) => {
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = ev => {
+          const dataUrl = ev.target.result;
+          const mediaType = dataUrl.split(";")[0].split(":")[1] || "image/jpeg";
+          const base64 = dataUrl.split(",")[1];
+          cb({ base64, mediaType, preview: dataUrl });
+        };
+        reader.readAsDataURL(file);
+      };
+
       const send = async () => {
-        if (!input.trim() || loading) return;
-        const newMsgs = [...msgs, { role: "user", content: input.trim() }];
-        setMsgs(newMsgs); setInput(""); setLoading(true);
+        if ((!input.trim() && !pendingImg) || loading) return;
+        const text = input.trim() || "What do you see in this photo?";
+        const img  = pendingImg; // capture before state clear
+        // Store content as plain string — api/chat.js injects image into last message server-side
+        const newMsgs = [...msgs, { role: "user", content: text, imagePreview: img?.preview }];
+        setMsgs(newMsgs); setInput(""); setPendingImg(null); setLoading(true);
         try {
-          const res = await fetch("https://api.anthropic.com/v1/messages", {
+          const res = await fetch("/api/chat", {
             method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 600, system: buildCtx(animal), messages: newMsgs.map(m=>({role:m.role,content:m.content})) })
+            body: JSON.stringify({
+              system: buildCtx(animal),
+              messages: newMsgs.map(m => ({ role: m.role, content: m.content })),
+              maxTokens: 700,
+              ...(img ? { imageBase64: img.base64, imageMediaType: img.mediaType } : {})
+            })
           });
           const data = await res.json();
-          setMsgs(p => [...p, { role: "assistant", content: data.content?.map(b=>b.text||"").join("")||AI_ERROR_MSG }]);
+          setMsgs(p => [...p, { role: "assistant", content: data.content || AI_ERROR_MSG }]);
         } catch { setMsgs(p => [...p, { role: "assistant", content: AI_ERROR_MSG }]); }
         setLoading(false);
       };
@@ -1833,10 +1856,16 @@ Use this data to give specific, personal answers. Be warm and practical. Always 
 
       return (
         <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 280px)", minHeight: 340 }}>
+
+          {/* Hidden file inputs */}
+          <input ref={fileRef}   type="file" accept="image/*"                   style={{ display:"none" }} onChange={e => loadImg(e.target.files[0], setPendingImg)} />
+          <input ref={cameraRef} type="file" accept="image/*" capture="environment" style={{ display:"none" }} onChange={e => loadImg(e.target.files[0], setPendingImg)} />
+
           <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: C.sagePale, border: `1px solid ${C.sageLight}`, borderRadius: 10, marginBottom: 12 }}>
             <span style={{ fontSize: 14 }}>🧠</span>
-            <span style={{ fontFamily: F.body, fontSize: 11, color: C.sageDark, fontWeight: 600 }}>AI has full access to {animal.name}'s records, weight, medications & reminders</span>
+            <span style={{ fontFamily: F.body, fontSize: 11, color: C.sageDark, fontWeight: 600 }}>AI has full access to {animal.name}'s records — and can see photos you share</span>
           </div>
+
           <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 12, paddingBottom: 8 }}>
             {msgs.map((m, i) => (
               <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: m.role==="user"?"flex-end":"flex-start", gap: 4 }}>
@@ -1846,18 +1875,45 @@ Use this data to give specific, personal answers. Be warm and practical. Always 
                     <span style={{ fontFamily: F.body, fontSize: 10, color: C.stone, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em" }}>{animal.name}'s AI</span>
                   </div>
                 )}
-                <div style={{ maxWidth: "80%", padding: "12px 16px", borderRadius: m.role==="user"?"18px 18px 4px 18px":"4px 18px 18px 18px", background: m.role==="user"?C.brown:C.white, color: m.role==="user"?C.cream:C.dark, fontFamily: F.body, fontSize: 14, lineHeight: 1.7, border: m.role==="user"?"none":`1.5px solid ${C.parchment}`, whiteSpace: "pre-wrap" }}>{m.content}</div>
+                <div style={{ maxWidth: "80%", display: "flex", flexDirection: "column", gap: 4, alignItems: m.role==="user"?"flex-end":"flex-start" }}>
+                  {m.imagePreview && (
+                    <img src={m.imagePreview} alt="Attached photo" style={{ maxWidth: 200, maxHeight: 160, borderRadius: 12, border: `1.5px solid ${C.parchment}`, objectFit: "cover" }} />
+                  )}
+                  <div style={{ padding: "12px 16px", borderRadius: m.role==="user"?"18px 18px 4px 18px":"4px 18px 18px 18px", background: m.role==="user"?C.brown:C.white, color: m.role==="user"?C.cream:C.dark, fontFamily: F.body, fontSize: 14, lineHeight: 1.7, border: m.role==="user"?"none":`1.5px solid ${C.parchment}`, whiteSpace: "pre-wrap" }}>{m.content}</div>
+                </div>
               </div>
             ))}
             {loading && <div style={{ display:"flex",gap:5,padding:"14px 18px",borderRadius:"4px 18px 18px 18px",background:C.white,border:`1.5px solid ${C.parchment}`,width:"fit-content" }}>{[1,2,3].map(n=><div key={n} className={`pp-dot-${n}`} style={{width:7,height:7,borderRadius:"50%",background:C.sage}}/>)}</div>}
             <div ref={bottomRef} />
           </div>
-          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-            <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&send()} placeholder={`Ask about ${animal.name}…`} style={{ flex:1,padding:"11px 15px",borderRadius:10,border:`1.5px solid ${C.parchment}`,fontFamily:F.body,fontSize:14,background:C.white,color:C.dark,outline:"none" }} />
-            <Btn onClick={send} variant="primary" style={{ borderRadius:10,padding:"11px 18px" }}>Send</Btn>
+
+          {/* Pending image preview */}
+          {pendingImg && (
+            <div style={{ position: "relative", display: "inline-flex", alignSelf: "flex-end", marginBottom: 6 }}>
+              <img src={pendingImg.preview} alt="Photo to send" style={{ height: 72, width: 72, borderRadius: 10, objectFit: "cover", border: `2px solid ${C.sage}` }} />
+              <button onClick={() => setPendingImg(null)} style={{ position:"absolute",top:-6,right:-6,width:20,height:20,borderRadius:"50%",background:C.stone,border:"2px solid white",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:"white",fontWeight:700,lineHeight:1 }}>×</button>
+            </div>
+          )}
+
+          {/* Input row */}
+          <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+            <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&send()} placeholder={pendingImg ? "Add a question about this photo…" : `Ask about ${animal.name}…`} style={{ flex:1,padding:"11px 15px",borderRadius:10,border:`1.5px solid ${C.parchment}`,fontFamily:F.body,fontSize:14,background:C.white,color:C.dark,outline:"none" }} />
+            <Btn onClick={send} variant="primary" disabled={loading} style={{ borderRadius:10,padding:"11px 18px" }}>Send</Btn>
           </div>
-          <div style={{ marginTop:8,display:"flex",flexWrap:"wrap",gap:6 }}>
-            {qp.map(q=><button key={q} onClick={()=>setInput(q)} style={{ background:C.white,border:`1.5px solid ${C.parchment}`,borderRadius:100,padding:"4px 12px",fontFamily:F.body,fontSize:11,color:C.stone,cursor:"pointer" }}>{q}</button>)}
+
+          {/* Photo buttons row */}
+          <div style={{ display:"flex", gap:8, marginTop:8, alignItems:"center", flexWrap:"wrap" }}>
+            <button onClick={() => cameraRef.current.click()} style={{ display:"flex",alignItems:"center",gap:6,padding:"7px 14px",borderRadius:100,border:`1.5px solid ${C.parchment}`,background:C.offWhite,cursor:"pointer",fontFamily:F.body,fontSize:12,fontWeight:600,color:C.stone }}>
+              📷 Take Photo
+            </button>
+            <button onClick={() => fileRef.current.click()} style={{ display:"flex",alignItems:"center",gap:6,padding:"7px 14px",borderRadius:100,border:`1.5px solid ${C.parchment}`,background:C.offWhite,cursor:"pointer",fontFamily:F.body,fontSize:12,fontWeight:600,color:C.stone }}>
+              🖼️ Upload Photo
+            </button>
+            <div style={{ flex:1 }} />
+            {qp.slice(0,2).map(q=><button key={q} onClick={()=>setInput(q)} style={{ background:C.white,border:`1.5px solid ${C.parchment}`,borderRadius:100,padding:"4px 12px",fontFamily:F.body,fontSize:11,color:C.stone,cursor:"pointer" }}>{q}</button>)}
+          </div>
+          <div style={{ display:"flex",flexWrap:"wrap",gap:6,marginTop:6 }}>
+            {qp.slice(2).map(q=><button key={q} onClick={()=>setInput(q)} style={{ background:C.white,border:`1.5px solid ${C.parchment}`,borderRadius:100,padding:"4px 12px",fontFamily:F.body,fontSize:11,color:C.stone,cursor:"pointer" }}>{q}</button>)}
           </div>
         </div>
       );
