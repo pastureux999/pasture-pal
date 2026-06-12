@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PasturePal — Your AI-Powered Homestead Assistant</title>
-  <meta name="description" content="PasturePal combines 5 unique AI features for your herd with a full garden & harvest tracker — USDA zone-based planting calendar, harvest reminders, and AI garden advisor. Free for 10 animals." />
+  <title>PasturePal — Livestock & Homestead Tracker</title>
+  <meta name="description" content="PasturePal keeps every animal's records, medications, reminders, and weight history in one place — plus a garden tracker, production log, and farm finances. Free for up to 10 animals." />
   <!-- Open Graph / Social sharing -->
-  <meta property="og:title" content="PasturePal — Your AI-Powered Homestead Assistant" />
-  <meta property="og:description" content="Track livestock, plan your garden, log production, and get instant AI advice — all in one free app built for small farms and homesteads." />
+  <meta property="og:title" content="PasturePal — Livestock & Homestead Tracker" />
+  <meta property="og:description" content="Track your animals, plan your garden, and log what your farm produces — all in one beautiful app built for small farms and homesteads." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://www.mypasturepal.com" />
   <meta property="og:image" content="https://www.mypasturepal.com/icons/og-image.png" />
@@ -16,8 +16,8 @@
   <meta property="og:site_name" content="PasturePal" />
   <!-- Twitter / X Card -->
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="PasturePal — Your AI-Powered Homestead Assistant" />
-  <meta name="twitter:description" content="Track livestock, plan your garden, log production, and get instant AI advice — all in one free app built for small farms and homesteads." />
+  <meta name="twitter:title" content="PasturePal — Livestock & Homestead Tracker" />
+  <meta name="twitter:description" content="Track your animals, plan your garden, and log what your farm produces — all in one beautiful app built for small farms and homesteads." />
   <meta name="twitter:image" content="https://www.mypasturepal.com/icons/og-image.png" />
   <!-- Google Analytics -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-B61GZDRV4Y"></script>
@@ -262,6 +262,11 @@
     .nav-mobile-cta { display:none; gap:8px; align-items:center; }
     .nav-mobile-cta .btn { display:flex !important; }
 
+    /* ── Species selector ── */
+    .sp-pill { background:var(--off);border:1.5px solid var(--parch);border-radius:100px;padding:10px 20px;font-family:'Jost',sans-serif;font-size:13px;font-weight:600;color:var(--stone);cursor:pointer;transition:all 0.2s ease; }
+    .sp-pill:hover { background:var(--cream);color:var(--dark);border-color:var(--pebble); }
+    .sp-pill--active { background:var(--brown) !important;color:var(--cream) !important;border-color:var(--brown) !important; }
+
 /* ── Responsive ── */
     @media(max-width:640px) {
       section { padding:56px 0; }
@@ -269,10 +274,12 @@
       .step-arrow { display:none; }
       .cta-band { padding:48px 24px;margin:0 16px;border-radius:20px; }
       nav .btn { display:none; }
-      .nav-links { display:none; }
+      .nav-links { display:flex; flex-shrink:0; }
+      .nav-link { display:none; }
+      .nav-link--m { display:flex !important; font-size:12px; padding:5px 10px; }
       .nav-mobile-cta { display:flex; }
       .stat-item { border-right:none;border-bottom:1px solid var(--parch); }
-
+      .how-connector { display:none !important; }
     }
   </style>
 </head>
@@ -298,11 +305,11 @@
       </div>
     </a>
     <div class="nav-links">
-      <a href="#ai-features" class="nav-link">AI Features</a>
+      <a href="#features"    class="nav-link nav-link--m">Features</a>
       <a href="#garden"      class="nav-link">🌱 Garden</a>
-      <a href="#farm"        class="nav-link">🏡 Farm</a>
-      <a href="#features"    class="nav-link">Features</a>
-      <a href="#pricing"     class="nav-link">Pricing</a>
+      <a href="#production"  class="nav-link">📊 Production</a>
+      <a href="#ai-features" class="nav-link">AI Features</a>
+      <a href="#pricing"     class="nav-link nav-link--m">Pricing</a>
       <a href="#faq"         class="nav-link">FAQ</a>
       <a href="#pricing" class="btn btn--outline" style="padding:8px 18px;font-size:12px;border-radius:100px;">Go Pro</a>
       <a href="PasturePal.html" class="btn btn--ghost" style="padding:9px 20px;font-size:12px;border-radius:100px;color:var(--stone);border-color:var(--parch);background:transparent;">Sign In</a>
@@ -338,12 +345,12 @@
   </div>
 
   <div class="container--narrow">
-    <div class="hero-pill fade-up">✦ Now with 6 AI features + Garden + Farm tab</div>
-    <h1 class="hero-headline fade-up-2">The <em>complete</em><br>homestead assistant.</h1>
-    <p class="hero-sub fade-up-3">PasturePal combines a smart herd journal, six AI tools found nowhere else, a full garden & harvest tracker, and a new Farm tab — production logging, finances, pasture rotation, and live weather alerts. All in one beautiful app.</p>
+    <div class="hero-pill fade-up">✦ Track livestock · Garden · Production — all in one app</div>
+    <h1 class="hero-headline fade-up-2">Your herd,<br><em>always on track.</em></h1>
+    <p class="hero-sub fade-up-3">PasturePal keeps every animal's records, medications, weight history, and reminders in one place — plus a full garden tracker, production log, pasture rotation, and farm finances. Built for small farms and homesteads.</p>
     <div class="hero-ctas fade-up-3">
       <a href="PasturePal.html" class="btn btn--primary btn--lg">Start Free — Up to 10 Animals</a>
-      <a href="#ai-features"   class="btn btn--outline btn--lg">See the AI Features ↓</a>
+      <a href="#features"      class="btn btn--outline btn--lg">See All Features ↓</a>
     </div>
     <p class="hero-note">Free forever for up to 10 animals · Pro from $6/month · 14-day trial</p>
   </div>
@@ -358,38 +365,86 @@
         <div class="mock-url">pasturePal.app</div>
       </div>
       <div class="mock-body">
-        <!-- Main nav tabs -->
+        <!-- Animated nav tabs -->
         <div style="display:flex;background:#F5EDD8;border-radius:10px;padding:3px;margin-bottom:12px;gap:3px;">
-          <div style="flex:1;padding:7px 4px;border-radius:8px;background:#3D2B10;color:#F5EDD8;font-family:'Jost',sans-serif;font-size:9px;font-weight:700;text-align:center;">🐄 Herd</div>
-          <div style="flex:1;padding:7px 4px;border-radius:8px;background:#4D7057;color:#fff;font-family:'Jost',sans-serif;font-size:9px;font-weight:700;text-align:center;">🌱 Garden</div>
-          <div style="flex:1;padding:7px 4px;border-radius:8px;background:#6B4C22;color:#F5EDD8;font-family:'Jost',sans-serif;font-size:9px;font-weight:700;text-align:center;">🏡 Farm</div>
-          <div style="flex:1;padding:7px 4px;border-radius:8px;color:#8A7355;font-family:'Jost',sans-serif;font-size:9px;font-weight:500;text-align:center;">🤖 AI</div>
+          <div id="htab0" onclick="heroTab(0)" style="flex:1;padding:7px 4px;border-radius:8px;background:#3D2B10;color:#F5EDD8;font-family:'Jost',sans-serif;font-size:9px;font-weight:700;text-align:center;cursor:pointer;transition:all 0.3s;">🐄 Herd</div>
+          <div id="htab1" onclick="heroTab(1)" style="flex:1;padding:7px 4px;border-radius:8px;color:#8A7355;font-family:'Jost',sans-serif;font-size:9px;font-weight:500;text-align:center;cursor:pointer;transition:all 0.3s;">🌱 Garden</div>
+          <div id="htab2" onclick="heroTab(2)" style="flex:1;padding:7px 4px;border-radius:8px;color:#8A7355;font-family:'Jost',sans-serif;font-size:9px;font-weight:500;text-align:center;cursor:pointer;transition:all 0.3s;">📊 Production</div>
+          <div id="htab3" onclick="heroTab(3)" style="flex:1;padding:7px 4px;border-radius:8px;color:#8A7355;font-family:'Jost',sans-serif;font-size:9px;font-weight:500;text-align:center;cursor:pointer;transition:all 0.3s;">🤖 AI</div>
         </div>
-        <!-- Herd Health Score -->
-        <div style="background:#FBF7EE;border-radius:12px;border:1px solid #E8D9B5;padding:12px 16px;display:flex;align-items:center;gap:16px;margin-bottom:10px;">
-          <svg width="72" height="72" viewBox="0 0 96 96">
-            <circle cx="48" cy="48" r="36" fill="none" stroke="#E8D9B5" stroke-width="7"/>
-            <circle cx="48" cy="48" r="36" fill="none" stroke="#7A9E82" stroke-width="7" stroke-dasharray="204 226" stroke-linecap="round" transform="rotate(-90 48 48)"/>
-            <text x="48" y="44" text-anchor="middle" font-family="Playfair Display,serif" font-size="18" font-weight="800" fill="#7A9E82">A+</text>
-            <text x="48" y="58" text-anchor="middle" font-family="Jost,sans-serif" font-size="9" font-weight="600" fill="#8A7355">96%</text>
-          </svg>
-          <div>
-            <div style="font-family:'Jost',sans-serif;font-size:9px;color:#8A7355;text-transform:uppercase;letter-spacing:0.14em;font-weight:700;margin-bottom:4px;">Herd Health Score</div>
-            <div style="font-family:'Playfair Display',serif;font-size:17px;font-weight:700;color:#7A9E82;margin-bottom:3px;">Excellent!</div>
-            <div style="font-family:'Jost',sans-serif;font-size:11px;color:#8A7355;">All 6 animals are on schedule 🌿</div>
+
+        <!-- Panel 0: Herd -->
+        <div id="hpanel0">
+          <div style="background:#FBF7EE;border-radius:12px;border:1px solid #E8D9B5;padding:12px 16px;display:flex;align-items:center;gap:16px;margin-bottom:10px;">
+            <svg width="72" height="72" viewBox="0 0 96 96">
+              <circle cx="48" cy="48" r="36" fill="none" stroke="#E8D9B5" stroke-width="7"/>
+              <circle cx="48" cy="48" r="36" fill="none" stroke="#7A9E82" stroke-width="7" stroke-dasharray="204 226" stroke-linecap="round" transform="rotate(-90 48 48)"/>
+              <text x="48" y="44" text-anchor="middle" font-family="Playfair Display,serif" font-size="18" font-weight="800" fill="#7A9E82">A+</text>
+              <text x="48" y="58" text-anchor="middle" font-family="Jost,sans-serif" font-size="9" font-weight="600" fill="#8A7355">96%</text>
+            </svg>
+            <div>
+              <div style="font-family:'Jost',sans-serif;font-size:9px;color:#8A7355;text-transform:uppercase;letter-spacing:0.14em;font-weight:700;margin-bottom:4px;">Herd Health Score</div>
+              <div style="font-family:'Playfair Display',serif;font-size:17px;font-weight:700;color:#7A9E82;margin-bottom:3px;">Excellent!</div>
+              <div style="font-family:'Jost',sans-serif;font-size:11px;color:#8A7355;">All 6 animals are on schedule 🌿</div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;">
+            <div style="background:#FBF7EE;border-radius:10px;border:1px solid #E8D9B5;border-top:3px solid #7A9E82;padding:10px 8px;text-align:center;"><div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:800;color:#1E1509;">6</div><div style="font-size:8px;color:#8A7355;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Animals</div></div>
+            <div style="background:#FBF7EE;border-radius:10px;border:1px solid #E8D9B5;border-top:3px solid #B85C34;padding:10px 8px;text-align:center;"><div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:800;color:#1E1509;">1</div><div style="font-size:8px;color:#8A7355;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Meds Due</div></div>
+            <div style="background:#FBF7EE;border-radius:10px;border:1px solid #E8D9B5;border-top:3px solid #E8D9B5;padding:10px 8px;text-align:center;"><div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:800;color:#B5A080;">0</div><div style="font-size:8px;color:#8A7355;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Due Soon</div></div>
+          </div>
+          <div style="background:#FBF7EE;border-radius:10px;border:1px solid #E8D9B5;padding:10px 12px;display:flex;align-items:center;gap:10px;">
+            <div style="width:38px;height:38px;border-radius:9px;background:rgba(184,92,52,0.15);border:1.5px solid rgba(184,92,52,0.3);display:flex;align-items:center;justify-content:center;font-size:20px;">🐄</div>
+            <div style="flex:1;"><div style="font-family:'Playfair Display',serif;font-size:14px;font-weight:700;color:#1E1509;">Daisy</div><div style="font-size:9px;color:#8A7355;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">Hereford Cattle · Female</div></div>
+            <div style="font-size:9px;font-weight:700;padding:3px 9px;border-radius:100px;background:rgba(122,158,130,0.15);color:#4D7057;border:1px solid rgba(122,158,130,0.3);">On Track ✓</div>
           </div>
         </div>
-        <!-- Stats row -->
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;">
-          <div style="background:#FBF7EE;border-radius:10px;border:1px solid #E8D9B5;border-top:3px solid #7A9E82;padding:10px 8px;text-align:center;"><div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:800;color:#1E1509;">6</div><div style="font-size:8px;color:#8A7355;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Animals</div></div>
-          <div style="background:#FBF7EE;border-radius:10px;border:1px solid #E8D9B5;border-top:3px solid #B85C34;padding:10px 8px;text-align:center;"><div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:800;color:#1E1509;">1</div><div style="font-size:8px;color:#8A7355;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Meds Due</div></div>
-          <div style="background:#FBF7EE;border-radius:10px;border:1px solid #E8D9B5;border-top:3px solid #E8D9B5;padding:10px 8px;text-align:center;"><div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:800;color:#B5A080;">0</div><div style="font-size:8px;color:#8A7355;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Due Soon</div></div>
+
+        <!-- Panel 1: Garden -->
+        <div id="hpanel1" style="display:none;">
+          <div style="background:#FBF7EE;border-radius:12px;border:1px solid #E8D9B5;padding:10px 14px;display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+            <span style="font-size:20px;">🌱</span>
+            <div><div style="font-size:8px;color:#8A7355;text-transform:uppercase;letter-spacing:0.12em;font-weight:700;margin-bottom:2px;">Your Garden Zone</div><div style="font-family:'Playfair Display',serif;font-size:15px;font-weight:700;color:#4D7057;">Zone 6b · Last frost Apr 15</div></div>
+          </div>
+          <div style="display:grid;gap:7px;">
+            <div style="background:#FBF7EE;border-radius:9px;border:1px solid #E8D9B5;padding:8px 12px;display:flex;align-items:center;gap:8px;"><span style="font-size:16px;">🍅</span><div style="flex:1;"><div style="font-size:11px;font-weight:700;color:#1E1509;">Tomatoes</div><div style="font-size:8px;color:#8A7355;">Transplanted May 12</div></div><div style="font-size:8px;font-weight:700;padding:2px 7px;border-radius:100px;background:rgba(122,158,130,0.15);color:#4D7057;border:1px solid rgba(122,158,130,0.3);">Growing ✓</div></div>
+            <div style="background:#FBF7EE;border-radius:9px;border:1px solid #E8D9B5;padding:8px 12px;display:flex;align-items:center;gap:8px;"><span style="font-size:16px;">🥬</span><div style="flex:1;"><div style="font-size:11px;font-weight:700;color:#1E1509;">Kale</div><div style="font-size:8px;color:#8A7355;">Planted Apr 28</div></div><div style="font-size:8px;font-weight:700;padding:2px 7px;border-radius:100px;background:rgba(200,160,80,0.15);color:#8B6914;border:1px solid rgba(200,160,80,0.3);">Harvest Soon</div></div>
+            <div style="background:#FBF7EE;border-radius:9px;border:1px solid #E8D9B5;padding:8px 12px;display:flex;align-items:center;gap:8px;"><span style="font-size:16px;">🫑</span><div style="flex:1;"><div style="font-size:11px;font-weight:700;color:#1E1509;">Peppers</div><div style="font-size:8px;color:#8A7355;">Transplanted May 18</div></div><div style="font-size:8px;font-weight:700;padding:2px 7px;border-radius:100px;background:rgba(122,158,130,0.15);color:#4D7057;border:1px solid rgba(122,158,130,0.3);">Growing ✓</div></div>
+          </div>
         </div>
-        <!-- Animal card -->
-        <div style="background:#FBF7EE;border-radius:10px;border:1px solid #E8D9B5;padding:10px 12px;display:flex;align-items:center;gap:10px;">
-          <div style="width:38px;height:38px;border-radius:9px;background:rgba(184,92,52,0.15);border:1.5px solid rgba(184,92,52,0.3);display:flex;align-items:center;justify-content:center;font-size:20px;">🐄</div>
-          <div style="flex:1;"><div style="font-family:'Playfair Display',serif;font-size:14px;font-weight:700;color:#1E1509;">Daisy</div><div style="font-size:9px;color:#8A7355;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">Hereford Cattle · Female</div></div>
-          <div style="font-size:9px;font-weight:700;padding:3px 9px;border-radius:100px;background:rgba(122,158,130,0.15);color:#4D7057;border:1px solid rgba(122,158,130,0.3);">On Track ✓</div>
+
+        <!-- Panel 2: Production -->
+        <div id="hpanel2" style="display:none;">
+          <div style="font-size:8px;color:#8A7355;text-transform:uppercase;letter-spacing:0.12em;font-weight:700;margin-bottom:8px;">Today's Production Log</div>
+          <div style="display:grid;gap:7px;margin-bottom:10px;">
+            <div style="background:#FBF7EE;border-radius:10px;border:1px solid #E8D9B5;padding:10px 12px;display:flex;align-items:center;gap:10px;"><span style="font-size:18px;">🥚</span><div style="flex:1;"><div style="font-size:11px;font-weight:700;color:#1E1509;">Eggs</div><div style="font-size:8px;color:#8A7355;">84 this week</div></div><div style="font-family:'Playfair Display',serif;font-size:20px;font-weight:800;color:#1E1509;">12</div></div>
+            <div style="background:#FBF7EE;border-radius:10px;border:1px solid #E8D9B5;padding:10px 12px;display:flex;align-items:center;gap:10px;"><span style="font-size:18px;">🥛</span><div style="flex:1;"><div style="font-size:11px;font-weight:700;color:#1E1509;">Milk</div><div style="font-size:8px;color:#8A7355;">16.1 gal this week</div></div><div><span style="font-family:'Playfair Display',serif;font-size:20px;font-weight:800;color:#1E1509;">2.3</span><span style="font-size:9px;color:#8A7355;"> gal</span></div></div>
+          </div>
+          <div style="background:rgba(200,160,80,0.1);border-radius:10px;border:1px solid rgba(200,160,80,0.25);padding:10px 12px;text-align:center;"><div style="font-size:8px;color:#8B6914;text-transform:uppercase;letter-spacing:0.1em;font-weight:700;margin-bottom:3px;">June Total Income</div><div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:800;color:#6B4C22;">$284</div></div>
+        </div>
+
+        <!-- Panel 3: AI -->
+        <div id="hpanel3" style="display:none;">
+          <div style="background:#FBF7EE;border-radius:12px;border:1px solid #E8D9B5;padding:12px;margin-bottom:8px;">
+            <div style="font-size:8px;color:#8A7355;text-transform:uppercase;letter-spacing:0.12em;font-weight:700;margin-bottom:10px;">AI Symptom Check · Daisy</div>
+            <div style="display:flex;align-items:flex-start;gap:7px;margin-bottom:9px;">
+              <div style="width:18px;height:18px;border-radius:50%;background:rgba(184,92,52,0.2);display:flex;align-items:center;justify-content:center;font-size:9px;flex-shrink:0;margin-top:1px;">👤</div>
+              <div style="background:#E8D9B5;border-radius:0 8px 8px 8px;padding:6px 9px;font-size:10px;color:#3D2B10;line-height:1.5;">Daisy seems lethargic and off her feed today</div>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:7px;">
+              <div style="width:18px;height:18px;border-radius:50%;background:rgba(122,158,130,0.2);display:flex;align-items:center;justify-content:center;font-size:9px;flex-shrink:0;margin-top:1px;">🤖</div>
+              <div style="background:rgba(122,158,130,0.1);border-radius:0 8px 8px 8px;padding:6px 9px;font-size:10px;color:#1E1509;line-height:1.5;border:1px solid rgba(122,158,130,0.2);">🟠 <strong>See vet within 24–48h</strong><br><span style="color:#8A7355;">Possible hypocalcemia based on her recent weight drop.</span></div>
+            </div>
+          </div>
+          <div style="background:rgba(77,112,87,0.1);border-radius:8px;padding:7px 10px;font-size:9px;color:#4D7057;font-weight:600;text-align:center;">Knows Daisy's full history · Pre-loaded automatically</div>
+        </div>
+
+        <!-- Tab progress dots -->
+        <div style="display:flex;gap:4px;justify-content:center;margin-top:12px;">
+          <div id="hdot0" style="width:20px;height:3px;border-radius:2px;background:#3D2B10;transition:all 0.3s;"></div>
+          <div id="hdot1" style="width:6px;height:3px;border-radius:2px;background:#E8D9B5;transition:all 0.3s;"></div>
+          <div id="hdot2" style="width:6px;height:3px;border-radius:2px;background:#E8D9B5;transition:all 0.3s;"></div>
+          <div id="hdot3" style="width:6px;height:3px;border-radius:2px;background:#E8D9B5;transition:all 0.3s;"></div>
         </div>
       </div>
     </div>
@@ -401,11 +456,42 @@
 <section style="padding:0 0 60px;">
   <div class="container">
     <div class="stat-bar">
-      <div class="stat-item"><div class="stat-num">6</div><div class="stat-lbl">Unique AI Features</div></div>
-      <div class="stat-item"><div class="stat-num">10</div><div class="stat-lbl">Free Animals</div></div>
+      <div class="stat-item"><div class="stat-num">∞</div><div class="stat-lbl">Animals Tracked</div></div>
+      <div class="stat-item"><div class="stat-num">10</div><div class="stat-lbl">Free Forever</div></div>
+      <div class="stat-item"><div class="stat-num">4</div><div class="stat-lbl">Tabs: Herd, Garden, Production, AI</div></div>
       <div class="stat-item"><div class="stat-num">$6</div><div class="stat-lbl">Per Month Pro</div></div>
-      <div class="stat-item"><div class="stat-num">4</div><div class="stat-lbl">Farm Tab Tools</div></div>
-      <div class="stat-item"><div class="stat-num">0</div><div class="stat-lbl">Competitors with All This</div></div>
+      <div class="stat-item"><div class="stat-num">0</div><div class="stat-lbl">Apps That Do All This</div></div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ── Species Selector ── -->
+<section style="padding:60px 0;">
+  <div class="container--narrow">
+    <div class="center" style="margin-bottom:28px;">
+      <div class="eyebrow">Works for your animals</div>
+      <h2 class="section-title" style="font-size:clamp(22px,3.5vw,36px);">What do you raise?</h2>
+      <p style="font-size:15px;color:var(--stone);margin-top:8px;">Tap your animals to see what PasturePal tracks for you.</p>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-bottom:32px;">
+      <button onclick="selectSpecies(0)" class="sp-pill sp-pill--active">🐄 Cattle</button>
+      <button onclick="selectSpecies(1)" class="sp-pill">🐐 Goats</button>
+      <button onclick="selectSpecies(2)" class="sp-pill">🐖 Pigs</button>
+      <button onclick="selectSpecies(3)" class="sp-pill">🐔 Chickens</button>
+      <button onclick="selectSpecies(4)" class="sp-pill">🐑 Sheep</button>
+      <button onclick="selectSpecies(5)" class="sp-pill">🐴 Horses</button>
+    </div>
+    <div id="speciesCard" style="background:var(--off);border-radius:20px;border:1.5px solid var(--parch);padding:28px 32px;box-shadow:0 4px 20px rgba(42,31,14,0.08);max-width:560px;margin:0 auto;transition:opacity 0.2s ease;">
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;">
+        <div id="spEmoji" style="font-size:42px;line-height:1;">🐄</div>
+        <div>
+          <div id="spName" style="font-family:'Playfair Display',serif;font-size:22px;font-weight:800;color:var(--dark);">Cattle</div>
+          <div style="font-size:12px;color:var(--stone);margin-top:2px;">Here's what PasturePal tracks</div>
+        </div>
+      </div>
+      <div id="spFeatures" style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:20px;"></div>
+      <a href="PasturePal.html" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--sage-d);text-decoration:none;">Start tracking for free →</a>
     </div>
   </div>
 </section>
@@ -513,7 +599,7 @@
 <!-- ── Garden Spotlight ── -->
 <section id="garden" style="background:linear-gradient(160deg,#F0F5F1 0%,#FBF7EE 60%,#F5EDD8 100%);border-top:1px solid #A8C5AD44;border-bottom:1px solid #A8C5AD44;">
   <div class="container">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center;">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:48px;align-items:center;">
 
       <!-- Left: copy -->
       <div>
@@ -621,13 +707,13 @@
 </section>
 
 
-<!-- ── Farm Spotlight ── -->
-<section id="farm" style="background:linear-gradient(160deg,#FAF5EC 0%,#FBF7EE 60%,#F5EDD8 100%);border-top:1px solid #C8A05044;border-bottom:1px solid #C8A05044;">
+<!-- ── Production Spotlight ── -->
+<section id="production" style="background:linear-gradient(160deg,#FAF5EC 0%,#FBF7EE 60%,#F5EDD8 100%);border-top:1px solid #C8A05044;border-bottom:1px solid #C8A05044;">
   <div class="container">
     <div class="center" style="margin-bottom:48px;">
-      <div class="eyebrow" style="color:#6B4C22;">🏡 New — Farm Management</div>
-      <h2 class="section-title">Run a tighter operation.</h2>
-      <p class="section-sub" style="margin:0 auto;">Track what your farm produces, what it costs, where your animals graze, and what weather is coming — all free, all in one tab.</p>
+      <div class="eyebrow" style="color:#6B4C22;">📊 Production Tab</div>
+      <h2 class="section-title">Know what your farm produces.</h2>
+      <p class="section-sub" style="margin:0 auto;">Log eggs, milk, honey, and more. Track expenses and income. Manage pasture rotation and watch the weather — all in one free tab.</p>
     </div>
 
     <div class="feat-grid" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr));">
@@ -866,40 +952,36 @@
 <!-- ── How it works ── -->
 <section style="background:rgba(251,247,238,0.6);border-top:1px solid #E8D9B5;border-bottom:1px solid #E8D9B5;">
   <div class="container">
-    <div class="center section-header" style="margin-bottom:48px;">
+    <div class="center section-header" style="margin-bottom:60px;">
       <div class="eyebrow">Simple by design</div>
-      <h2 class="section-title">Up and running in 5 minutes.</h2>
+      <h2 class="section-title">Up and running in 3 minutes.</h2>
     </div>
-    <div class="steps" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));">
-      <div class="step">
-        <div class="step-icon">🐄</div>
-        <div class="step-num">1</div>
-        <div class="step-title">Add your animals</div>
-        <div class="step-text">Name, breed, species, date of birth. Takes 2 minutes. AI immediately suggests a full care schedule — one click to add all reminders.</div>
-        <div class="step-arrow">→</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:40px;position:relative;">
+      <!-- Connector line (desktop only) -->
+      <div class="how-connector" style="position:absolute;top:40px;left:calc(16% + 40px);right:calc(16% + 40px);height:2px;background:linear-gradient(to right,var(--parch),var(--sage-l),var(--parch));pointer-events:none;"></div>
+
+      <div style="text-align:center;padding:0 12px;">
+        <div style="width:80px;height:80px;border-radius:24px;background:linear-gradient(135deg,var(--brown),#5A3A18);display:flex;align-items:center;justify-content:center;font-size:34px;margin:0 auto 18px;box-shadow:0 8px 24px rgba(61,43,16,0.22);">🐄</div>
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--brown);color:var(--cream);font-family:'Playfair Display',serif;font-size:13px;font-weight:800;margin-bottom:14px;">1</div>
+        <div style="font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:var(--dark);margin-bottom:10px;">Add your animals</div>
+        <div style="font-size:14px;color:var(--stone);line-height:1.7;">Name, species, breed, date of birth. Two minutes. AI instantly generates a full care schedule — one tap to add all reminders.</div>
       </div>
-      <div class="step">
-        <div class="step-icon">🔔</div>
-        <div class="step-num">2</div>
-        <div class="step-title">Set smart reminders</div>
-        <div class="step-text">7 reminder types with Google Calendar sync. Get browser notifications before anything is due. Never miss a vaccination or hoof trim again.</div>
-        <div class="step-arrow">→</div>
+
+      <div style="text-align:center;padding:0 12px;">
+        <div style="width:80px;height:80px;border-radius:24px;background:linear-gradient(135deg,var(--sage-d),#3A6050);display:flex;align-items:center;justify-content:center;font-size:34px;margin:0 auto 18px;box-shadow:0 8px 24px rgba(77,112,87,0.22);">📋</div>
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--sage-d);color:#fff;font-family:'Playfair Display',serif;font-size:13px;font-weight:800;margin-bottom:14px;">2</div>
+        <div style="font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:var(--dark);margin-bottom:10px;">Log records in seconds</div>
+        <div style="font-size:14px;color:var(--stone);line-height:1.7;">Tap to log weights, medications, production, and health events — all timestamped. No more sticky notes or lost spreadsheets.</div>
       </div>
-      <div class="step">
-        <div class="step-icon">🌱</div>
-        <div class="step-num">3</div>
-        <div class="step-title">Set up your garden</div>
-        <div class="step-text">Enter your zip code once — we look up your USDA zone and frost dates. Add plants, track their progress, and get a monthly planting calendar tailored to your exact climate.</div>
-        <div class="step-arrow">→</div>
-      </div>
-      <div class="step">
-        <div class="step-icon">🤖</div>
-        <div class="step-num">4</div>
-        <div class="step-title">Let AI do the rest</div>
-        <div class="step-text">Check your Herd Health Score daily. Use the Symptom Checker when something seems off. Ask the Garden Advisor what to plant this month. Your whole homestead, one app.</div>
+
+      <div style="text-align:center;padding:0 12px;">
+        <div style="width:80px;height:80px;border-radius:24px;background:linear-gradient(135deg,var(--wheat),#A07830);display:flex;align-items:center;justify-content:center;font-size:34px;margin:0 auto 18px;box-shadow:0 8px 24px rgba(200,160,80,0.22);">🔔</div>
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--wheat);color:#fff;font-family:'Playfair Display',serif;font-size:13px;font-weight:800;margin-bottom:14px;">3</div>
+        <div style="font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:var(--dark);margin-bottom:10px;">Get reminders &amp; insights</div>
+        <div style="font-size:14px;color:var(--stone);line-height:1.7;">Never miss a vaccination or hoof trim. Check your Herd Health Score daily. Use the AI Symptom Checker when something seems off — at any hour.</div>
       </div>
     </div>
-    <div style="text-align:center;margin-top:48px;">
+    <div style="text-align:center;margin-top:56px;">
       <a href="PasturePal.html" class="btn btn--primary btn--lg">Try It Free →</a>
     </div>
   </div>
@@ -1113,6 +1195,67 @@
   </div>
   <div class="footer-copy">© 2026 PasturePal · Built with love for small farms & homesteads 🐄</div>
 </footer>
+
+<!-- ── Hero Tab Switcher + Species Selector ── -->
+<script>
+// ── Animated hero tabs ──────────────────────────────────────────────
+(function() {
+  var tabBg    = ['#3D2B10','#4D7057','#6B4C22','#5A3F7A'];
+  var tabColor = ['#F5EDD8','#fff','#F5EDD8','#fff'];
+  var dotBg    = ['#3D2B10','#4D7057','#6B4C22','#5A3F7A'];
+  var cur = 0, timer;
+
+  function setTab(idx) {
+    for (var i = 0; i < 4; i++) {
+      var t = document.getElementById('htab' + i);
+      var p = document.getElementById('hpanel' + i);
+      var d = document.getElementById('hdot' + i);
+      if (t) { t.style.background = i === idx ? tabBg[i] : 'transparent'; t.style.color = i === idx ? tabColor[i] : '#8A7355'; t.style.fontWeight = i === idx ? '700' : '500'; }
+      if (p) { p.style.display = i === idx ? 'block' : 'none'; }
+      if (d) { d.style.width = i === idx ? '20px' : '6px'; d.style.background = i === idx ? dotBg[i] : '#E8D9B5'; }
+    }
+    cur = idx;
+  }
+
+  window.heroTab = function(idx) {
+    clearInterval(timer);
+    setTab(idx);
+    timer = setInterval(function() { setTab((cur + 1) % 4); }, 3200);
+  };
+
+  timer = setInterval(function() { setTab((cur + 1) % 4); }, 3200);
+})();
+
+// ── Species selector ────────────────────────────────────────────────
+(function() {
+  var species = [
+    { emoji:'🐄', name:'Cattle',   feats:['Weight & growth charts','BCS photo scoring','Milk production log','Vaccination schedules','Pasture rotation','Calving records'] },
+    { emoji:'🐐', name:'Goats',    feats:['Milk production log','Hoof trim reminders','Deworming schedules','Kidding records','Weight tracking','BCS scoring'] },
+    { emoji:'🐖', name:'Pigs',     feats:['Weight gain tracking','Feed logs','Vaccination records','Farrowing schedules','Medication history','Growth charts'] },
+    { emoji:'🐔', name:'Chickens', feats:['Egg production log','Flock health tracking','Vaccination reminders','Feed & supplement logs','Coop notes','Hatch records'] },
+    { emoji:'🐑', name:'Sheep',    feats:['Wool harvest records','Lambing schedules','Deworming reminders','Weight tracking','BCS scoring','Vaccination records'] },
+    { emoji:'🐴', name:'Horses',   feats:['Farrier reminders','Dental & vet visits','Weight & body score','Vaccination records','Exercise logs','Medication tracking'] },
+  ];
+
+  window.selectSpecies = function(idx) {
+    document.querySelectorAll('.sp-pill').forEach(function(p, i) {
+      if (i === idx) p.classList.add('sp-pill--active');
+      else p.classList.remove('sp-pill--active');
+    });
+    var s = species[idx];
+    document.getElementById('spEmoji').textContent = s.emoji;
+    document.getElementById('spName').textContent  = s.name;
+    document.getElementById('spFeatures').innerHTML = s.feats.map(function(f) {
+      return '<div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--brown);font-weight:500;"><span style="color:var(--sage);font-weight:700;font-size:14px;flex-shrink:0;">✓</span>' + f + '</div>';
+    }).join('');
+    var card = document.getElementById('speciesCard');
+    card.style.opacity = '0';
+    setTimeout(function() { card.style.opacity = '1'; }, 50);
+  };
+
+  selectSpecies(0);
+})();
+</script>
 
 <!-- ── Cookie Consent Banner ── -->
 <div id="cookie-banner" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:9999;background:#2C2318;color:#F5EDD8;padding:16px 24px;flex-wrap:wrap;gap:12px;/* display set by JS */;flex-direction:row;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;box-shadow:0 -4px 24px rgba(0,0,0,0.25);">

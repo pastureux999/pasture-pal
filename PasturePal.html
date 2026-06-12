@@ -2254,12 +2254,46 @@ Write in warm farm-journal style, under 220 words. Include: a greeting with toda
       );
     }
 
-    function Dashboard({ animals, onSelect, onUpgrade, isPro, onQuickReminder, onGestation, onSymptomCheck, onDigest, onAdd }) {
+    function QuickWeightModal({ animals, onSave, onClose }) {
+      const [animalId, setAnimalId] = useState(animals[0]?.id || "");
+      const [lbs, setLbs] = useState("");
+      const today = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+      const canSave = lbs && parseFloat(lbs) > 0 && animalId;
+      return (
+        <Modal title="Quick Weight Log" onClose={onClose}>
+          <div style={{ display: "grid", gap: 16 }}>
+            <div>
+              <div style={{ fontFamily: F.body, fontSize: 11, color: C.stone, textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700, marginBottom: 8 }}>Animal</div>
+              <select value={animalId} onChange={e => setAnimalId(e.target.value)} style={{ width: "100%", padding: "11px 12px", borderRadius: 12, border: `1.5px solid ${C.parchment}`, background: C.offWhite, fontFamily: F.body, fontSize: 14, color: C.dark, outline: "none" }}>
+                {animals.map(a => <option key={a.id} value={a.id}>{a.emoji || "🐄"} {a.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <div style={{ fontFamily: F.body, fontSize: 11, color: C.stone, textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700, marginBottom: 8 }}>Weight (lbs)</div>
+              <input type="number" inputMode="decimal" value={lbs} onChange={e => setLbs(e.target.value)} placeholder="e.g. 925" style={{ width: "100%", padding: "11px 12px", borderRadius: 12, border: `1.5px solid ${C.parchment}`, background: C.offWhite, fontFamily: F.body, fontSize: 14, color: C.dark, outline: "none", boxSizing: "border-box" }} />
+            </div>
+            <div style={{ fontFamily: F.body, fontSize: 12, color: C.pebble }}>Logged for today · {today}</div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={onClose} style={{ flex: 1, padding: 12, borderRadius: 12, border: `1.5px solid ${C.parchment}`, background: "transparent", fontFamily: F.body, fontWeight: 700, fontSize: 14, color: C.stone, cursor: "pointer" }}>Cancel</button>
+              <button disabled={!canSave} onClick={() => canSave && onSave(animalId, parseFloat(lbs))} style={{ flex: 2, padding: 12, borderRadius: 12, border: "none", background: canSave ? C.sage : C.parchment, color: canSave ? "white" : C.pebble, fontFamily: F.body, fontWeight: 700, fontSize: 14, cursor: canSave ? "pointer" : "not-allowed" }}>Save Weight</button>
+            </div>
+          </div>
+        </Modal>
+      );
+    }
+
+    function Dashboard({ animals, onSelect, onUpgrade, isPro, onQuickReminder, onGestation, onSymptomCheck, onDigest, onAdd, onQuickWeight, onGoProduction }) {
       const allMeds = animals.flatMap(a => (a.meds || []).filter(m => { const d = daysUntil(m.due); return d !== null && d <= 30 && d >= 0; }).map(m => ({ ...m, animalName: a.name })));
       const allRem  = animals.flatMap(a => (a.reminders || []).filter(r => { const d = daysUntil(r.due); return d !== null && d <= 14 && d >= 0; }).map(r => ({ ...r, animalName: a.name })));
       const alerts  = [...allMeds.map(m => ({ text: `${m.animalName}: ${m.name}`, due: m.due, type: "med" })), ...allRem.map(r => ({ text: `${r.animalName}: ${r.text}`, due: r.due, type: r.type || "custom" }))].sort((a, b) => new Date(a.due) - new Date(b.due));
       const overdueCount = alerts.filter(a => daysUntil(a.due) < 0).length;
+      const kpiOverdue  = animals.flatMap(a => [...(a.meds||[]), ...(a.reminders||[])].filter(x => { const d = daysUntil(x.due); return d !== null && d < 0; }));
+      const kpiThisWeek = animals.flatMap(a => [...(a.meds||[]), ...(a.reminders||[])].filter(x => { const d = daysUntil(x.due); return d !== null && d >= 0 && d <= 7; }));
+      const lastWDs  = animals.flatMap(a => (a.weight||[]).map(w => w.date)).filter(Boolean).sort();
+      const lastWD   = lastWDs[lastWDs.length - 1];
+      const lastWDay = lastWD ? Math.floor((Date.now() - new Date(lastWD)) / 86400000) : null;
       const [searchQuery, setSearchQuery] = useState("");
+      const [fabOpen, setFabOpen] = useState(false);
       const filteredAnimals = searchQuery.trim()
         ? animals.filter(a => {
             const q = searchQuery.toLowerCase();
@@ -2277,6 +2311,32 @@ Write in warm farm-journal style, under 220 words. Include: a greeting with toda
 
       return (
         <div style={{ display: "grid", gap: 16 }}>
+
+          {/* KPI Strip */}
+          {animals.length > 0 && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
+              <div style={{ background: C.offWhite, border: `1px solid ${C.parchment}`, borderRadius: 14, padding: "14px 16px", borderTop: `3px solid ${C.sage}` }}>
+                <div style={{ fontFamily: F.body, fontSize: 9, color: C.stone, textTransform: "uppercase", letterSpacing: "0.12em", fontWeight: 700, marginBottom: 6 }}>🐄 Animals</div>
+                <div style={{ fontFamily: F.display, fontSize: 28, fontWeight: 800, color: C.dark, lineHeight: 1 }}>{animals.length}</div>
+                <div style={{ fontFamily: F.body, fontSize: 11, color: C.stone, marginTop: 4 }}>{animals.map(a => a.emoji || "🐄").slice(0, 5).join(" ")}{animals.length > 5 ? " +" + (animals.length - 5) : ""}</div>
+              </div>
+              <div style={{ background: C.offWhite, border: `1px solid ${C.parchment}`, borderRadius: 14, padding: "14px 16px", borderTop: `3px solid ${kpiOverdue.length > 0 ? C.terracotta : C.sage}` }}>
+                <div style={{ fontFamily: F.body, fontSize: 9, color: C.stone, textTransform: "uppercase", letterSpacing: "0.12em", fontWeight: 700, marginBottom: 6 }}>⚠️ Overdue</div>
+                <div style={{ fontFamily: F.display, fontSize: 28, fontWeight: 800, color: kpiOverdue.length > 0 ? C.terracotta : C.sage, lineHeight: 1 }}>{kpiOverdue.length}</div>
+                <div style={{ fontFamily: F.body, fontSize: 11, color: C.stone, marginTop: 4 }}>{kpiOverdue.length > 0 ? "needs attention" : "all caught up ✓"}</div>
+              </div>
+              <div style={{ background: C.offWhite, border: `1px solid ${C.parchment}`, borderRadius: 14, padding: "14px 16px", borderTop: `3px solid ${kpiThisWeek.length > 0 ? C.amber : C.sage}` }}>
+                <div style={{ fontFamily: F.body, fontSize: 9, color: C.stone, textTransform: "uppercase", letterSpacing: "0.12em", fontWeight: 700, marginBottom: 6 }}>📅 Due This Week</div>
+                <div style={{ fontFamily: F.display, fontSize: 28, fontWeight: 800, color: kpiThisWeek.length > 0 ? C.amber : C.stone, lineHeight: 1 }}>{kpiThisWeek.length}</div>
+                <div style={{ fontFamily: F.body, fontSize: 11, color: C.stone, marginTop: 4 }}>{kpiThisWeek.length > 0 ? "tasks coming up" : "clear this week"}</div>
+              </div>
+              <div style={{ background: C.offWhite, border: `1px solid ${C.parchment}`, borderRadius: 14, padding: "14px 16px", borderTop: `3px solid ${C.sky}` }}>
+                <div style={{ fontFamily: F.body, fontSize: 9, color: C.stone, textTransform: "uppercase", letterSpacing: "0.12em", fontWeight: 700, marginBottom: 6 }}>⚖️ Last Weighed</div>
+                <div style={{ fontFamily: F.display, fontSize: 28, fontWeight: 800, color: C.dark, lineHeight: 1 }}>{lastWDay === null ? "—" : lastWDay === 0 ? "Today" : `${lastWDay}d`}</div>
+                <div style={{ fontFamily: F.body, fontSize: 11, color: C.stone, marginTop: 4 }}>{lastWDay === null ? "no weights logged" : lastWDay === 0 ? "logged today" : "days ago"}</div>
+              </div>
+            </div>
+          )}
 
           {/* AI quick-action bar */}
           <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
@@ -2431,13 +2491,49 @@ Write in warm farm-journal style, under 220 words. Include: a greeting with toda
             </div>
           )}
 
+          {/* Today section */}
+          {animals.length > 0 && (() => {
+            const todayAs = animals.filter(a => [...(a.meds||[]), ...(a.reminders||[])].some(x => { const d = daysUntil(x.due); return d !== null && d <= 0; }));
+            if (todayAs.length === 0) return (
+              <div style={{ background: `linear-gradient(135deg, ${C.sagePale}, ${C.offWhite})`, border: `1px solid ${C.sageLight}`, borderRadius: 14, padding: "14px 18px", display: "flex", alignItems: "center", gap: 12 }}>
+                <span style={{ fontSize: 20 }}>🌿</span>
+                <div style={{ fontFamily: F.body, fontSize: 14, color: C.stone }}>All clear today — no tasks due or overdue.</div>
+              </div>
+            );
+            return (
+              <div style={{ background: `${C.terracotta}08`, border: `1.5px solid ${C.terracotta}33`, borderRadius: 14, padding: "12px 16px" }}>
+                <div style={{ fontFamily: F.body, fontSize: 10, color: C.terracotta, textTransform: "uppercase", letterSpacing: "0.14em", fontWeight: 700, marginBottom: 10 }}>⚠️ Needs Attention Today</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {todayAs.map(a => {
+                    const items = [...(a.meds||[]), ...(a.reminders||[])].filter(x => { const d = daysUntil(x.due); return d !== null && d <= 0; });
+                    return (
+                      <button key={a.id} onClick={() => onSelect(a)} style={{ display: "flex", alignItems: "center", gap: 10, background: C.offWhite, border: `1px solid ${C.parchment}`, borderRadius: 10, padding: "9px 12px", cursor: "pointer", textAlign: "left", width: "100%", fontFamily: "inherit" }}>
+                        <span style={{ fontSize: 18 }}>{a.emoji || "🐄"}</span>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontFamily: F.display, fontWeight: 700, fontSize: 14, color: C.dark }}>{a.name}</div>
+                          <div style={{ fontFamily: F.body, fontSize: 11, color: C.stone }}>{items.length} item{items.length !== 1 ? "s" : ""} due</div>
+                        </div>
+                        <svg width="6" height="10" viewBox="0 0 7 12" fill="none" style={{ color: C.pebble, flexShrink: 0 }}><path d="M1 1l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Animal cards */}
           {filteredAnimals.map(a => {
-            const medDue = (a.meds || []).some(m => { const d = daysUntil(m.due); return d !== null && d <= 14 && d >= 0; });
-            const remDue = (a.reminders || []).some(r => { const d = daysUntil(r.due); return d !== null && d <= 7 && d >= 0; });
+            const medDue     = (a.meds      || []).some(m => { const d = daysUntil(m.due); return d !== null && d <= 14 && d >= 0; });
+            const remDue     = (a.reminders || []).some(r => { const d = daysUntil(r.due); return d !== null && d <= 7  && d >= 0; });
+            const anyOverdue = [...(a.meds||[]), ...(a.reminders||[])].some(x => { const d = daysUntil(x.due); return d !== null && d < 0; });
+            const healthDot  = anyOverdue ? C.terracotta : (medDue || remDue) ? C.amber : C.sage;
             return (
               <Card key={a.id} onClick={() => onSelect(a)} hoverable style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 18px" }}>
-                <AnimalAvatar animal={a} size={58} radius={13} />
+                <div style={{ position: "relative", flexShrink: 0 }}>
+                  <AnimalAvatar animal={a} size={58} radius={13} />
+                  <div title={anyOverdue ? "Overdue items" : (medDue||remDue) ? "Due soon" : "On track"} style={{ position: "absolute", bottom: 1, right: 1, width: 13, height: 13, borderRadius: "50%", background: healthDot, border: "2.5px solid white", boxShadow: `0 0 0 1px ${healthDot}44` }} />
+                </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontFamily: F.display, fontWeight: 800, fontSize: 18, color: C.dark, letterSpacing: "-0.01em", marginBottom: 5 }}>{a.name}</div>
                   <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
@@ -2459,6 +2555,27 @@ Write in warm farm-journal style, under 220 words. Include: a greeting with toda
               No animals match "<strong>{searchQuery}</strong>"
             </div>
           )}
+
+          {/* Quick Log FAB */}
+          <div style={{ position: "fixed", bottom: "calc(96px + env(safe-area-inset-bottom))", right: 20, zIndex: 200 }}>
+            {fabOpen && (
+              <div style={{ position: "absolute", bottom: 62, right: 0, background: C.offWhite, border: `1.5px solid ${C.parchment}`, borderRadius: 16, padding: 8, boxShadow: "0 8px 32px rgba(42,31,14,0.18)", display: "flex", flexDirection: "column", gap: 2, width: 200, overflow: "hidden" }}>
+                <div style={{ fontFamily: F.body, fontSize: 9, color: C.stone, textTransform: "uppercase", letterSpacing: "0.12em", fontWeight: 700, padding: "6px 10px 8px", borderBottom: `1px solid ${C.parchment}`, marginBottom: 2 }}>⚡ Quick Log</div>
+                <button onClick={() => { setFabOpen(false); onQuickWeight && onQuickWeight(); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 10, border: "none", background: "transparent", cursor: "pointer", fontFamily: F.body, fontSize: 13, fontWeight: 600, color: C.dark, textAlign: "left", width: "100%" }}>
+                  <span style={{ fontSize: 18, width: 26, textAlign: "center" }}>⚖️</span>Log Weight
+                </button>
+                <button onClick={() => { setFabOpen(false); onQuickReminder && onQuickReminder("medication"); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 10, border: "none", background: "transparent", cursor: "pointer", fontFamily: F.body, fontSize: 13, fontWeight: 600, color: C.dark, textAlign: "left", width: "100%" }}>
+                  <span style={{ fontSize: 18, width: 26, textAlign: "center" }}>💉</span>Log Medication
+                </button>
+                <button onClick={() => { setFabOpen(false); onGoProduction && onGoProduction(); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 10, border: "none", background: "transparent", cursor: "pointer", fontFamily: F.body, fontSize: 13, fontWeight: 600, color: C.dark, textAlign: "left", width: "100%" }}>
+                  <span style={{ fontSize: 18, width: 26, textAlign: "center" }}>📊</span>Log Production
+                </button>
+              </div>
+            )}
+            <button onClick={() => setFabOpen(o => !o)} style={{ width: 52, height: 52, borderRadius: "50%", background: fabOpen ? C.stone : C.sage, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: `0 4px 20px ${C.sage}66`, transition: "all 0.25s ease", color: "white", fontSize: fabOpen ? 28 : 26, fontWeight: 300, lineHeight: 1 }} aria-label="Quick Log">
+              {fabOpen ? "×" : "+"}
+            </button>
+          </div>
         </div>
       );
     }
@@ -3657,6 +3774,7 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
       const [showGestation, setShowGestation]       = useState(false);
       const [showSymptomCheck, setShowSymptomCheck] = useState(false);
       const [showDigest, setShowDigest]             = useState(false);
+      const [showQuickWeight, setShowQuickWeight]   = useState(false);
       const [showAutoSchedule, setShowAutoSchedule] = useState(null); // animal object
 
       // Garden state
@@ -4067,7 +4185,7 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
                       onAdd={() => { if (!isPro && animals.length >= FREE_LIMIT) { setShowUpgrade(true); return; } setShowAdd(true); }}
                       onUpgrade={() => setShowUpgrade(true)}
                     />
-                    <Dashboard animals={animals} onSelect={setSelected} onUpgrade={() => setShowUpgrade(true)} isPro={isPro} onQuickReminder={(type) => setShowReminder(type)} onGestation={() => setShowGestation(true)} onSymptomCheck={() => setShowSymptomCheck(true)} onDigest={() => setShowDigest(true)} onAdd={() => { if (!isPro && animals.length >= FREE_LIMIT) { setShowUpgrade(true); return; } setShowAdd(true); }} />
+                    <Dashboard animals={animals} onSelect={setSelected} onUpgrade={() => setShowUpgrade(true)} isPro={isPro} onQuickReminder={(type) => setShowReminder(type)} onGestation={() => setShowGestation(true)} onSymptomCheck={() => setShowSymptomCheck(true)} onDigest={() => setShowDigest(true)} onAdd={() => { if (!isPro && animals.length >= FREE_LIMIT) { setShowUpgrade(true); return; } setShowAdd(true); }} onQuickWeight={() => setShowQuickWeight(true)} onGoProduction={() => setView("production")} />
                   </div>
                 )}
 
@@ -4195,6 +4313,7 @@ Give practical, zone-specific gardening advice. Be warm, encouraging, and concis
           {showGestation    && <GestationModal animals={animals} onClose={() => setShowGestation(false)} onAddReminder={(animalId, r) => { setAnimals(p => p.map(a => a.id === animalId ? { ...a, reminders: [...(a.reminders||[]), r] } : a)); }} />}
           {showSymptomCheck && <SymptomCheckerModal animals={animals} onClose={() => setShowSymptomCheck(false)} isPro={isPro} onUpgrade={() => { setShowSymptomCheck(false); setShowUpgrade(true); }} />}
           {showDigest       && <WeeklyDigestModal animals={animals} onClose={() => setShowDigest(false)} isPro={isPro} onUpgrade={() => { setShowDigest(false); setShowUpgrade(true); }} />}
+          {showQuickWeight  && animals.length > 0 && <QuickWeightModal animals={animals} onClose={() => setShowQuickWeight(false)} onSave={(animalId, lbs) => { const today = new Date().toISOString().slice(0,10); setAnimals(p => p.map(a => a.id === animalId ? { ...a, weight: [...(a.weight||[]), { date: today, lbs }] } : a)); setShowQuickWeight(false); }} />}
           {showAutoSchedule && <AutoScheduleModal animal={showAutoSchedule} onClose={() => setShowAutoSchedule(null)} onAddReminders={reminders => { setAnimals(p => p.map(a => a.id === showAutoSchedule.id ? { ...a, reminders: [...(a.reminders||[]), ...reminders] } : a)); }} />}
           {showReminder !== null && (
             <SmartReminderModal
